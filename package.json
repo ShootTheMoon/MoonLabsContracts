@@ -1,0 +1,28 @@
+{
+  "name": "soldityhardhat",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "deploy-goerli": "env $(cat .env) npx hardhat run --network goerli scripts/deploy.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.8.0",
+    "@openzeppelin/contracts-upgradeable": "^4.8.0",
+    "chai": "^4.3.7",
+    "ethers": "^5.7.2",
+    "hardhat": "^2.12.2",
+    "hardhat-ethers": "^1.0.1",
+    "hardhat-etherscan": "^1.0.1",
+    "hardhat-upgrades": "^0.0.0",
+    "mocha": "^10.1.0"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^2.0.0",
+    "prettier": "^2.8.0",
+    "prettier-plugin-solidity": "^1.0.0"
+  }
+}
