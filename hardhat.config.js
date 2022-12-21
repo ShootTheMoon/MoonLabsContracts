@@ -2,6 +2,8 @@ require("@nomicfoundation/hardhat-toolbox");
 require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-etherscan");
 require("@openzeppelin/hardhat-upgrades");
+require("hardhat-gas-reporter");
+require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -30,16 +32,20 @@ module.exports = {
     hardhat: {
       chainId: 1337,
       forking: {
-        url: "https://eth-mainnet.g.alchemy.com/v2/yDiYga8wtmvav2T5WAxd0yh68bT07gvo",
+        url: process.env.MAINNET_API,
         allowUnlimitedContractSize: true,
       },
     },
     goerli: {
-      url: `${process.env.TESTNET_API}`,
-      accounts: ["fe07d0412c3cd1c744d03d913000c11d672f599a33bd9b6687a1d8c8429e1db0"],
+      url: process.env.TESTNET_API,
+      accounts: [process.env.PRIVATE_KEY],
     },
   },
   etherscan: {
-    apiKey: `${process.env.ETH_SCAN_API}`,
+    apiKey: process.env.ETH_SCAN_API,
+  },
+  gasReporter: {
+    currency: "ETH",
+    coinmarketcap: process.env.CMC_API,
   },
 };

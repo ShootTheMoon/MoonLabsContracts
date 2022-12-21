@@ -13,6 +13,7 @@
     "@openzeppelin/contracts": "^4.8.0",
     "@openzeppelin/contracts-upgradeable": "^4.8.0",
     "chai": "^4.3.7",
+    "dotenv": "^16.0.3",
     "ethers": "^5.7.2",
     "hardhat": "^2.12.2",
     "hardhat-ethers": "^1.0.1",
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^2.0.0",
+    "hardhat-gas-reporter": "^1.0.9",
     "prettier": "^2.8.0",
     "prettier-plugin-solidity": "^1.0.0"
   }

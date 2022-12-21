@@ -22,7 +22,7 @@ async function main() {
 
   const MoonLabsVesting = await ethers.getContractFactory("MoonLabsVesting");
 
-  const moonLabsVesting = await upgrades.deployProxy(MoonLabsVesting, ["0x5B38Da6a701c568545dCfcB03FcB875f56beddC4", 30, 100, "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4", 20], {
+  const moonLabsVesting = await upgrades.deployProxy(MoonLabsVesting, ["0x5B38Da6a701c568545dCfcB03FcB875f56beddC4", 30, "100000000000000000", "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"], {
     initializer: "initialize",
   });
 

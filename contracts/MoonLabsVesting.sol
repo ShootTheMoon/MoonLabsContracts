@@ -26,20 +26,18 @@ import "./IDEXRouter.sol";
 contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   using SafeERC20Upgradeable for IERC20Upgradeable;
 
-  function initialize(address _tokenToBurn, uint _burnPercent, uint _lockPrice, address _routerAddress, uint _timeBuffer) public initializer {
+  function initialize(address _tokenToBurn, uint _burnPercent, uint _lockPrice, address _routerAddress) public initializer {
     __Ownable_init();
     tokenToBurn = IERC20Upgradeable(_tokenToBurn);
     burnPercent = _burnPercent;
     lockPrice = _lockPrice;
     iDEXRouter = IDEXRouter(_routerAddress);
-    timeBuffer = _timeBuffer;
   }
 
   /*|| === STATE VARIABLES === ||*/
   uint public index;
   uint public burnPercent;
   uint public lockPrice;
-  uint public timeBuffer;
   IERC20Upgradeable public tokenToBurn;
   IDEXRouter public iDEXRouter;
 
@@ -171,11 +169,6 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     iDEXRouter = IDEXRouter(_routerAddress);
   }
 
-  // Set time buffer
-  function setTimeBuffer(uint _timeBuffer) external onlyOwner {
-    timeBuffer = _timeBuffer;
-  }
-
   // Change lock price in wei
   function setLockPrice(uint _lockPrice) external onlyOwner {
     lockPrice = _lockPrice;
@@ -217,15 +210,10 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   function createVestingInstance(address _tokenAddress, address _withdrawAddress, uint _depositAmount, uint _startDate, uint _endDate) private {
     require(_depositAmount > 0, "Deposit amount must be greater than 0");
     require(_startDate < _endDate, "Start date must come before end date");
-    require(_endDate >= block.timestamp - timeBuffer && _endDate < 10000000000, "Invalid end date");
+    require(_endDate < 10000000000, "Invalid end date");
 
-    vestingInstance[index].tokenAddress = _tokenAddress;
-    vestingInstance[index].creatorAddress = msg.sender;
-    vestingInstance[index].withdrawAddress = _withdrawAddress;
-    vestingInstance[index].depositAmount = _depositAmount;
-    vestingInstance[index].currentAmount = _depositAmount;
-    vestingInstance[index].endDate = _endDate;
-    vestingInstance[index].startDate = _startDate;
+    // Create new VestingInstance struct and add to index
+    vestingInstance[index] = VestingInstance(_tokenAddress, msg.sender, _withdrawAddress, _depositAmount, _depositAmount, _startDate, _endDate);
 
     // Create map to withdraw address
     withdrawAddressToLock[_withdrawAddress].push(index);
@@ -249,9 +237,11 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     uint[] storage withdrawArray = withdrawAddressToLock[vestingInstance[_index].withdrawAddress];
     for (uint i = 0; i < withdrawArray.length; i++) {
       if (withdrawArray[i] == _index) {
+        // Shift down following indexes and overwrite deleted index
         for (uint j = i; j < withdrawArray.length - 1; j++) {
           withdrawArray[j] = withdrawArray[j + 1];
         }
+        // Remove last index
         withdrawArray.pop();
       }
     }
@@ -259,9 +249,11 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     uint[] storage creatorArray = creatorAddressToLock[vestingInstance[_index].creatorAddress];
     for (uint i = 0; i < creatorArray.length; i++) {
       if (creatorArray[i] == _index) {
+        // Shift down following indexes and overwrite deleted index
         for (uint j = i; j < creatorArray.length - 1; j++) {
           creatorArray[j] = creatorArray[j + 1];
         }
+        // Remove last index
         creatorArray.pop();
       }
     }
@@ -269,9 +261,11 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     uint[] storage tokenArray = tokenAddressToLock[vestingInstance[_index].tokenAddress];
     for (uint i = 0; i < tokenArray.length; i++) {
       if (tokenArray[i] == _index) {
+        // Shift down following indexes and overwrite deleted index
         for (uint j = i; j < tokenArray.length - 1; j++) {
           tokenArray[j] = tokenArray[j + 1];
         }
+        // Remove last index
         tokenArray.pop();
       }
     }
@@ -289,7 +283,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     uint _startDate = vestingInstance[_index].startDate;
     uint _currentAmount = vestingInstance[_index].currentAmount;
     uint _depositAmount = vestingInstance[_index].depositAmount;
-    uint _timeBlock = _endDate - _startDate;
+    uint _timeBlock = _endDate - _startDate; // Time from start date to end date
     uint _timeElapsed;
 
     if (_endDate <= block.timestamp) {
@@ -297,7 +291,15 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     } else if (_startDate < block.timestamp) {
       _timeElapsed = block.timestamp - _startDate;
     }
+
     // Math to calculate linear unlock
+    /*
+    This formula will only return a negative number when the current amount is less than what can actually be withdrawn
+
+      Deposit Amount x Time Elapsed
+      -----------------------------   -   (Deposit Amount - Current Amount)
+               Time Block
+    */
     return MathUpgradeable.mulDiv(_depositAmount, _timeElapsed, _timeBlock) - (_depositAmount - _currentAmount);
   }
 }
