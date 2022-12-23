@@ -1,8 +1,8 @@
 {
   "manifestVersion": "3.2",
   "admin": {
-    "address": "0x24432a08869578aAf4d1eadA12e1e78f171b1a2b",
-    "txHash": "0xb0bcbe472c3ca6c4ecf1b55b1cf891883100caf4993895ebcf95c3a0eeb91ebb"
+    "address": "0x2d13826359803522cCe7a4Cfa2c1b582303DD0B4",
+    "txHash": "0xcde701d02aeece83f44821e151f346f520d06df71faaef7352d5a644fe15745a"
   },
   "proxies": [
     {
@@ -58,11 +58,6 @@
     {
       "address": "0x2BB8B93F585B43b06F3d523bf30C203d3B6d4BD4",
       "txHash": "0xb78d484db26c0468b94b557d36a1c61052b36247532467f6687352b6f319177b",
-      "kind": "transparent"
-    },
-    {
-      "address": "0xCa57C1d3c2c35E667745448Fef8407dd25487ff8",
-      "txHash": "0x0e8a8ec601210a08e502d40fecc2acdbb01de58206dc6d48e1625ae76146070c",
       "kind": "transparent"
     },
     {
@@ -443,6 +438,11 @@
     {
       "address": "0x862E3acDE54f01a4540C4505a4E199214Ff6cD49",
       "txHash": "0x2661337304e2206e3b6db9c0940a08e783acebc2c23aa49277b3f45b030e5c12",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xCa57C1d3c2c35E667745448Fef8407dd25487ff8",
+      "txHash": "0xb7c14e1b5ec8282aa6a378d92293370b655322b872daa808e04db3da5ba6a9b6",
       "kind": "transparent"
     }
   ],
@@ -3087,9 +3087,9 @@
         }
       }
     },
-    "a6e83bb0c342c7a085cd99fd4002fecffe125f18974032246b8d05f575214ff4": {
+    "ec4dea5caff182a4f0cb080d7d115d5b4c11a394a018f2d1c7e2bb7e377499a3": {
       "address": "0xd0EC100F1252a53322051a95CF05c32f0C174354",
-      "txHash": "0x52415ac87572dfa950cff19b59c56892a83333e9fcba5a7ab6d4dac8ff638e33",
+      "txHash": "0xa00f544275a21b91bb3dd8c61f948ad3b98984f254b56780de52782948e79772",
       "layout": {
         "solcVersion": "0.8.7",
         "storage": [
@@ -3154,73 +3154,65 @@
             "label": "index",
             "offset": 0,
             "slot": "151",
-            "type": "t_uint256",
+            "type": "t_uint64",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:57"
+            "src": "contracts\\MoonLabsVesting.sol:56"
           },
           {
             "label": "burnPercent",
-            "offset": 0,
-            "slot": "152",
-            "type": "t_uint256",
+            "offset": 8,
+            "slot": "151",
+            "type": "t_uint8",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:57"
+            "src": "contracts\\MoonLabsVesting.sol:56"
           },
           {
             "label": "lockPrice",
             "offset": 0,
-            "slot": "153",
+            "slot": "152",
             "type": "t_uint256",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:58"
+            "src": "contracts\\MoonLabsVesting.sol:56"
           },
           {
             "label": "tokenToBurn",
             "offset": 0,
-            "slot": "154",
+            "slot": "153",
             "type": "t_contract(IERC20Upgradeable)451",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:58"
+            "src": "contracts\\MoonLabsVesting.sol:57"
           },
           {
             "label": "iDEXRouter",
             "offset": 0,
-            "slot": "155",
-            "type": "t_contract(IDEXRouter)2161",
+            "slot": "154",
+            "type": "t_contract(IDEXRouter)2058",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:59"
-          },
-          {
-            "label": "creatorAddressToLock",
-            "offset": 0,
-            "slot": "156",
-            "type": "t_mapping(t_address,t_array(t_uint256)dyn_storage)",
-            "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:71"
+            "src": "contracts\\MoonLabsVesting.sol:58"
           },
           {
             "label": "withdrawAddressToLock",
             "offset": 0,
-            "slot": "157",
-            "type": "t_mapping(t_address,t_array(t_uint256)dyn_storage)",
+            "slot": "155",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:71"
+            "src": "contracts\\MoonLabsVesting.sol:70"
           },
           {
             "label": "tokenAddressToLock",
             "offset": 0,
-            "slot": "158",
-            "type": "t_mapping(t_address,t_array(t_uint256)dyn_storage)",
+            "slot": "156",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:73"
+            "src": "contracts\\MoonLabsVesting.sol:72"
           },
           {
             "label": "vestingInstance",
             "offset": 0,
-            "slot": "159",
-            "type": "t_mapping(t_uint256,t_struct(VestingInstance)2243_storage)",
+            "slot": "157",
+            "type": "t_mapping(t_uint64,t_struct(VestingInstance)2138_storage)",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:75"
+            "src": "contracts\\MoonLabsVesting.sol:74"
           }
         ],
         "types": {
@@ -3236,15 +3228,15 @@
             "label": "uint256[50]",
             "numberOfBytes": "1600"
           },
-          "t_array(t_uint256)dyn_storage": {
-            "label": "uint256[]",
+          "t_array(t_uint64)dyn_storage": {
+            "label": "uint64[]",
             "numberOfBytes": "32"
           },
           "t_bool": {
             "label": "bool",
             "numberOfBytes": "1"
           },
-          "t_contract(IDEXRouter)2161": {
+          "t_contract(IDEXRouter)2058": {
             "label": "contract IDEXRouter",
             "numberOfBytes": "20"
           },
@@ -3252,15 +3244,15 @@
             "label": "contract IERC20Upgradeable",
             "numberOfBytes": "20"
           },
-          "t_mapping(t_address,t_array(t_uint256)dyn_storage)": {
-            "label": "mapping(address => uint256[])",
+          "t_mapping(t_address,t_array(t_uint64)dyn_storage)": {
+            "label": "mapping(address => uint64[])",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_uint256,t_struct(VestingInstance)2243_storage)": {
-            "label": "mapping(uint256 => struct MoonLabsVesting.VestingInstance)",
+          "t_mapping(t_uint64,t_struct(VestingInstance)2138_storage)": {
+            "label": "mapping(uint64 => struct MoonLabsVesting.VestingInstance)",
             "numberOfBytes": "32"
           },
-          "t_struct(VestingInstance)2243_storage": {
+          "t_struct(VestingInstance)2138_storage": {
             "label": "struct MoonLabsVesting.VestingInstance",
             "members": [
               {
@@ -3295,22 +3287,26 @@
               },
               {
                 "label": "startDate",
-                "type": "t_uint256",
+                "type": "t_uint64",
                 "offset": 0,
                 "slot": "5"
               },
               {
                 "label": "endDate",
-                "type": "t_uint256",
-                "offset": 0,
-                "slot": "6"
+                "type": "t_uint64",
+                "offset": 8,
+                "slot": "5"
               }
             ],
-            "numberOfBytes": "224"
+            "numberOfBytes": "192"
           },
           "t_uint256": {
             "label": "uint256",
             "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
           },
           "t_uint8": {
             "label": "uint8",

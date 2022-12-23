@@ -45,7 +45,8 @@ module.exports = {
     apiKey: process.env.ETH_SCAN_API,
   },
   gasReporter: {
-    currency: "ETH",
+    enabled: true,
+    currency: "USD",
     coinmarketcap: process.env.CMC_API,
   },
 };
