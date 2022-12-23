@@ -38,7 +38,7 @@ describe("Deployment", async function () {
 
     // Deploy vesting contract
     const MoonLabsVesting = await ethers.getContractFactory("MoonLabsVesting");
-    const moonLabsVesting = await upgrades.deployProxy(MoonLabsVesting, [testToken.address, 30, ethers.utils.parseEther(".1"), router.address], {
+    const moonLabsVesting = await upgrades.deployProxy(MoonLabsVesting, [testToken.address, 30, ethers.utils.parseEther(".1"), moonLabsReferral.address, router.address], {
       initializer: "initialize",
     });
     await moonLabsVesting.deployed();
@@ -56,7 +56,7 @@ describe("Deployment", async function () {
     //Create test token pair virtual contract
     // const pair = new ethers.Contract(pairAddress, pairAbi, owner);
 
-    return { moonLabsVesting, testToken, owner, address1, address2, EPOCH, moonLabsReferral };
+    return { moonLabsVesting, testToken, owner, address1, address2, EPOCH };
   }
   describe("Ownership", async function () {
     it("Owner should be set", async function () {

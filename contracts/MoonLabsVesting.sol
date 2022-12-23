@@ -27,8 +27,6 @@ import "./IDEXRouter.sol";
 interface IMoonLabsReferral {
   function checkIfActive(string calldata _code) external view returns (bool);
 
-  function getCodeByAddress(address _address) external view returns (string memory);
-
   function getAddressByCode(string memory _code) external view returns (address);
 }
 
@@ -86,18 +84,18 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   /*|| === PUBLIC FUNCTIONS === ||*/
   // Return claimable tokens
   function getClaimableTokens(uint64 _index) public view returns (uint) {
-    uint _currentAmount = VESTING_INSTANCE[_index].currentAmount;
-    uint64 _endDate = VESTING_INSTANCE[_index].endDate;
-    uint64 _startDate = VESTING_INSTANCE[_index].startDate;
+    uint currentAmount = VESTING_INSTANCE[_index].currentAmount;
+    uint64 endDate = VESTING_INSTANCE[_index].endDate;
+    uint64 startDate = VESTING_INSTANCE[_index].startDate;
 
     // Check if the token balance is 0
-    if (_currentAmount == 0) {
+    if (currentAmount == 0) {
       return 0;
     }
 
     // Check if lock is a normal lock
-    if (_startDate == 0) {
-      return _endDate <= block.timestamp ? _currentAmount : 0;
+    if (startDate == 0) {
+      return endDate <= block.timestamp ? currentAmount : 0;
     }
 
     // If none of the above then the token is a linear lock
@@ -105,8 +103,8 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   }
 
   // Transfer withdraw address
-  function transferVestingOwnership(uint64 _index, address _newOwner) public withdrawOwner(_index) {
-    // Change withdraw owner in vesting isntance to new owner
+  function transferVestingOwnership(uint64 _index, address _newOwner) public nonReentrant withdrawOwner(_index) {
+    // Change withdraw owner in vesting instance to new owner
     VESTING_INSTANCE[_index].withdrawAddress = _newOwner;
 
     // Delete mapping from old owner to index of vesting instance and pop
@@ -125,30 +123,60 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   }
 
   /*|| === EXTERNAL FUNCTIONS === ||*/
-  // Create lock or vesting instance
-  function createLock(address _tokenAddress, address[] calldata _withdrawAddress, uint64[] calldata _depositAmount, uint64[] calldata _startDate, uint64[] calldata _endDate, string calldata _code) external payable nonReentrant {
+  // Create vesting instance(s)
+  function createLock(address _tokenAddress, address[] calldata _withdrawAddress, uint64[] calldata _depositAmount, uint64[] calldata _startDate, uint64[] calldata _endDate) external payable nonReentrant {
+    // Check if all arrays are same the size
+    require(_withdrawAddress.length == _depositAmount.length && _depositAmount.length == _endDate.length && _endDate.length == _startDate.length, "Unequal array lengths");
+    // Check if msg value is correct
+    require(msg.value == LOCK_PRICE * _withdrawAddress.length, "Incorrect Price");
+
+    uint totalDepositAmount;
+
+    for (uint64 i; i < _withdrawAddress.length; i++) {
+      createVestingInstance(_tokenAddress, _withdrawAddress[i], _depositAmount[i], _startDate[i], _endDate[i]);
+      totalDepositAmount += _depositAmount[i];
+    }
+
+    // Transfer tokens to contract
+    IERC20Upgradeable(_tokenAddress).safeTransferFrom(msg.sender, address(this), totalDepositAmount);
+
+    // Buy tokenToBurn via uniswap router and send to dead address
+    address[] memory path = new address[](2);
+    path[0] = IDEXROUTER.WETH();
+    path[1] = address(TOKEN_TO_BURN);
+
+    IDEXROUTER.swapExactETHForTokensSupportingFeeOnTransferTokens{ value: (msg.value * BURN_PERCENT) / 100 }(0, path, 0x000000000000000000000000000000000000dEaD, block.timestamp);
+
+    // Emit lock created event
+    emit LockCreated(msg.sender, _tokenAddress, _depositAmount.length);
+  }
+
+  // Create vesting instance(s) with referral code
+  function createLockWithCode(address _tokenAddress, address[] calldata _withdrawAddress, uint64[] calldata _depositAmount, uint64[] calldata _startDate, uint64[] calldata _endDate, string calldata _code) external payable nonReentrant {
     // Check if all arrays are same the size
     require(_withdrawAddress.length == _depositAmount.length && _depositAmount.length == _endDate.length && _endDate.length == _startDate.length, "Unequal array lengths");
 
     // Check for referral code
     if (IMOONLABSREFERRAL.checkIfActive(_code) == true) {
       // Calculate discount
-      uint discount = (((CODE_DISCOUNT + CODE_COMMISSION) / 100) * LOCK_PRICE * _withdrawAddress.length);
-
-      require(msg.value == LOCK_PRICE * _withdrawAddress.length - discount, "Incorrect Price");
+      uint discount = ((CODE_DISCOUNT / 100) * LOCK_PRICE * _withdrawAddress.length);
+      uint commission = ((CODE_COMMISSION / 100) * LOCK_PRICE * _withdrawAddress.length);
+      require(msg.value == LOCK_PRICE * _withdrawAddress.length - (discount + commission), "Incorrect Price");
+      // Distribute commission
+      distributeCommission(_code, commission);
     } else {
       require(msg.value == LOCK_PRICE * _withdrawAddress.length, "Incorrect Price");
     }
 
-    uint _totalDepositAmount;
+    uint totalDepositAmount;
 
     for (uint64 i; i < _withdrawAddress.length; i++) {
       createVestingInstance(_tokenAddress, _withdrawAddress[i], _depositAmount[i], _startDate[i], _endDate[i]);
-      _totalDepositAmount += _depositAmount[i];
+      totalDepositAmount += _depositAmount[i];
     }
 
     // Transfer tokens to contract
-    IERC20Upgradeable(_tokenAddress).safeTransferFrom(msg.sender, address(this), _totalDepositAmount);
+    IERC20Upgradeable(_tokenAddress).safeTransferFrom(msg.sender, address(this), totalDepositAmount);
 
     // Buy tokenToBurn via uniswap router and send to dead address
     address[] memory path = new address[](2);
@@ -191,9 +219,24 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     IDEXROUTER = IDEXRouter(_routerAddress);
   }
 
+  // Set referral contract
+  function setReferralContract(address _referralAddress) external onlyOwner {
+    IMOONLABSREFERRAL = IMoonLabsReferral(_referralAddress);
+  }
+
   // Change lock price in wei
   function setLockPrice(uint _lockPrice) external onlyOwner {
     LOCK_PRICE = _lockPrice;
+  }
+
+  // Set referral code discount
+  function setCodeDiscount(uint _codeDiscount) external onlyOwner {
+    CODE_DISCOUNT = _codeDiscount;
+  }
+
+  // Set referral code commission
+  function setCodeCommission(uint _codeCommission) external onlyOwner {
+    CODE_COMMISSION = _codeCommission;
   }
 
   // Change token to auto burn
@@ -252,8 +295,8 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
   // Delete vesting instance
   function deleteVestingInstance(uint64 _index) private {
-    address _withdrawAddress = VESTING_INSTANCE[_index].withdrawAddress;
-    address _tokenAddress = VESTING_INSTANCE[_index].tokenAddress;
+    address withdrawAddress = VESTING_INSTANCE[_index].withdrawAddress;
+    address tokenAddress = VESTING_INSTANCE[_index].tokenAddress;
 
     // Delete mapping from withdraw owner to index
     uint64[] storage withdrawArray = WITHDRAW_TO_LOCK[VESTING_INSTANCE[_index].withdrawAddress];
@@ -297,22 +340,22 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     delete VESTING_INSTANCE[_index];
 
     // Emit deletion event
-    emit LockDeleted(_withdrawAddress, _tokenAddress, _index);
+    emit LockDeleted(withdrawAddress, tokenAddress, _index);
   }
 
   // Get the current amount of unlocked tokens
   function calculateLinearWithdraw(uint64 _index) private view returns (uint unlockedTokens) {
-    uint64 _endDate = VESTING_INSTANCE[_index].endDate;
-    uint64 _startDate = VESTING_INSTANCE[_index].startDate;
-    uint _currentAmount = VESTING_INSTANCE[_index].currentAmount;
-    uint _depositAmount = VESTING_INSTANCE[_index].depositAmount;
-    uint64 _timeBlock = _endDate - _startDate; // Time from start date to end date
-    uint64 _timeElapsed;
+    uint64 endDate = VESTING_INSTANCE[_index].endDate;
+    uint64 startDate = VESTING_INSTANCE[_index].startDate;
+    uint currentAmount = VESTING_INSTANCE[_index].currentAmount;
+    uint depositAmount = VESTING_INSTANCE[_index].depositAmount;
+    uint64 timeBlock = endDate - startDate; // Time from start date to end date
+    uint64 timeElapsed;
 
-    if (_endDate <= block.timestamp) {
-      _timeElapsed = _timeBlock;
-    } else if (_startDate < block.timestamp) {
-      _timeElapsed = uint64(block.timestamp) - _startDate;
+    if (endDate <= block.timestamp) {
+      timeElapsed = timeBlock;
+    } else if (startDate < block.timestamp) {
+      timeElapsed = uint64(block.timestamp) - startDate;
     }
 
     // Math to calculate linear unlock
@@ -323,11 +366,12 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
       -----------------------------   -   (Deposit Amount - Current Amount)
                Time Block
     */
-    return MathUpgradeable.mulDiv(_depositAmount, _timeElapsed, _timeBlock) - (_depositAmount - _currentAmount);
+    return MathUpgradeable.mulDiv(depositAmount, timeElapsed, timeBlock) - (depositAmount - currentAmount);
   }
 
+  // Distribute commission
   function distributeCommission(string memory _code, uint _value) private {
     address payable to = payable(IMOONLABSREFERRAL.getAddressByCode(_code));
-    to.transfer(address(this).balance);
+    to.transfer(_value);
   }
 }

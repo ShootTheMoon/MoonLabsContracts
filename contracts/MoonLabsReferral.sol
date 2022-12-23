@@ -41,8 +41,8 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     // Convert input to uppercase
     string memory _c = upper(_code);
     // Check if code is in use
-    if (CODE_ADDRESS[_c] == address(0)) return true;
-    return false;
+    if (CODE_ADDRESS[_c] == address(0)) return false;
+    return true;
   }
 
   //  Check if code is reserved
@@ -61,7 +61,7 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     // Convert input to uppercase
     string memory _c = upper(_code);
     // Check if code is reserved
-    require(checkIfReserved(_c) == true, "Code is not reserved");
+    require(checkIfReserved(_c) == true, "Code not reserved");
     for (uint16 i = 0; i < RESERVED_CODES.length; i++) {
       // Comapre two strings
       if (keccak256(abi.encodePacked(_c)) == keccak256(abi.encodePacked(RESERVED_CODES[i]))) {
@@ -72,7 +72,7 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
   }
 
   /*|| === EXTERNAL FUNCTIONS === ||*/
-  // Create a referal code that is bound to caller address
+  // Create a referral code that is bound to caller address
   function createCode(string calldata _code) external {
     // Convert input to uppercase
     string memory _c = upper(_code);
@@ -82,6 +82,7 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     require(keccak256(abi.encodePacked(ADDRESS_CODE[msg.sender])) == keccak256(abi.encodePacked("")), "Address in use");
     // Check if code is reserved
     require(checkIfReserved(_c) == false, "Code reserved");
+    // Create new mappings
     ADDRESS_CODE[msg.sender] = _c;
     CODE_ADDRESS[_c] = msg.sender;
     INDEX++;
@@ -95,14 +96,17 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     INDEX--;
   }
 
-  // Change address of referal code
+  // Change address of referral code
   function setCodeAddress(string calldata _code, address _address) external {
     // Convert input to uppercase
     string memory _c = upper(_code);
     // Check if sender owns code
     require(msg.sender == CODE_ADDRESS[_c], "You do not own this code");
-    // Check if caller address has a code
-    require(keccak256(abi.encodePacked(ADDRESS_CODE[_address])) == keccak256(abi.encodePacked("")), "Address not in use");
+    // Check if recipient address has a code
+    require(keccak256(abi.encodePacked(ADDRESS_CODE[_address])) == keccak256(abi.encodePacked("")), "Address in use");
+    // Delete mapping from address to code
+    delete ADDRESS_CODE[msg.sender];
+    // Create new mappings
     ADDRESS_CODE[_address] = _c;
     CODE_ADDRESS[_c] = _address;
   }
@@ -117,7 +121,7 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     return CODE_ADDRESS[_c];
   }
 
-  // Reserve referal code(s) and push to array
+  // Reserve referral code(s) and push to array
   function addReservedCodes(string[] calldata _code) external onlyOwner {
     for (uint8 i = 0; i < _code.length; i++) {
       // Convert input to uppercase
@@ -136,9 +140,12 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     // Convert input to uppercase
     string memory _c = upper(_code);
     // Check if code is not reserved
-    require(checkIfReserved(_c) == true, "Code is not reserved");
+    require(checkIfReserved(_c) == true, "Code not reserved");
+    // Check if recipient address has a code
+    require(keccak256(abi.encodePacked(ADDRESS_CODE[_address])) == keccak256(abi.encodePacked("")), "Address in use");
     // Remove code from reserved list
     removeReservedCode(_c);
+    // Create new mappings
     ADDRESS_CODE[_address] = _c;
     CODE_ADDRESS[_c] = _address;
     INDEX++;
@@ -148,9 +155,8 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     // Convert input to uppercase
     string memory _c = upper(_code);
     // Check if code is bound to an address
-    require(checkIfActive(_code) == false, "Code in use");
-    // Check if code is reserved
-    require(checkIfReserved(_c) == false, "Code is reserved");
+    require(checkIfActive(_code) == true, "Code not in use");
+    // Delete mappings
     delete ADDRESS_CODE[CODE_ADDRESS[_c]];
     delete CODE_ADDRESS[_c];
     INDEX--;
