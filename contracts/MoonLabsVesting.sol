@@ -40,6 +40,8 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     LOCK_PRICE = _lockPrice;
     IMOONLABSREFERRAL = IMoonLabsReferral(_referralAddress);
     IDEXROUTER = IDEXRouter(_routerAddress);
+    CODE_DISCOUNT = 10;
+    CODE_COMMISSION = 10;
   }
 
   /*|| === STATE VARIABLES === ||*/
@@ -137,8 +139,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
       totalDepositAmount += _depositAmount[i];
     }
 
-    // Transfer tokens to contract
-    IERC20Upgradeable(_tokenAddress).safeTransferFrom(msg.sender, address(this), totalDepositAmount);
+    transferTokens(_tokenAddress, totalDepositAmount, msg.sender); // Move to function to avoid "Stack too deep error"
 
     // Buy tokenToBurn via uniswap router and send to dead address
     address[] memory path = new address[](2);
@@ -152,21 +153,20 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   }
 
   // Create vesting instance(s) with referral code
-  function createLockWithCode(address _tokenAddress, address[] calldata _withdrawAddress, uint64[] calldata _depositAmount, uint64[] calldata _startDate, uint64[] calldata _endDate, string calldata _code) external payable nonReentrant {
+  function createLockWithCode(address _tokenAddress, address[] calldata _withdrawAddress, uint64[] calldata _depositAmount, uint64[] calldata _startDate, uint64[] calldata _endDate, string memory _code) external payable nonReentrant {
     // Check if all arrays are same the size
     require(_withdrawAddress.length == _depositAmount.length && _depositAmount.length == _endDate.length && _endDate.length == _startDate.length, "Unequal array lengths");
 
-    // Check for referral code
-    if (IMOONLABSREFERRAL.checkIfActive(_code) == true) {
-      // Calculate discount
-      uint discount = ((CODE_DISCOUNT / 100) * LOCK_PRICE * _withdrawAddress.length);
-      uint commission = ((CODE_COMMISSION / 100) * LOCK_PRICE * _withdrawAddress.length);
-      require(msg.value == LOCK_PRICE * _withdrawAddress.length - (discount + commission), "Incorrect Price");
-      // Distribute commission
-      distributeCommission(_code, commission);
-    } else {
-      require(msg.value == LOCK_PRICE * _withdrawAddress.length, "Incorrect Price");
-    }
+    // Check for referral valid code
+    require(IMOONLABSREFERRAL.checkIfActive(_code) == true, "Invalid code");
+    // Calculate discount
+    uint discount = (((LOCK_PRICE * CODE_DISCOUNT) / 100) * _withdrawAddress.length);
+    // Calcuate commission
+    uint commission = (((LOCK_PRICE * CODE_COMMISSION) / 100) * _withdrawAddress.length);
+    // Check if msg value is correct
+    require(msg.value == (LOCK_PRICE * _withdrawAddress.length - discount), "Incorrect price");
+    // Distribute commission
+    distributeCommission(_code, commission);
 
     uint totalDepositAmount;
 
@@ -175,8 +175,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
       totalDepositAmount += _depositAmount[i];
     }
 
-    // Transfer tokens to contract
-    IERC20Upgradeable(_tokenAddress).safeTransferFrom(msg.sender, address(this), totalDepositAmount);
+    transferTokens(_tokenAddress, totalDepositAmount, msg.sender); // Move to function to avoid "Stack too deep error"
 
     // Buy tokenToBurn via uniswap router and send to dead address
     address[] memory path = new address[](2);
@@ -291,6 +290,11 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     // Increment index
     INDEX++;
+  }
+
+  function transferTokens(address _tokenAddress, uint totalDepositAmount, address _sender) private {
+    // Transfer tokens to contract
+    IERC20Upgradeable(_tokenAddress).safeTransferFrom(_sender, address(this), totalDepositAmount);
   }
 
   // Delete vesting instance

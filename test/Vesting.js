@@ -56,7 +56,7 @@ describe("Deployment", async function () {
     //Create test token pair virtual contract
     // const pair = new ethers.Contract(pairAddress, pairAbi, owner);
 
-    return { moonLabsVesting, testToken, owner, address1, address2, EPOCH };
+    return { moonLabsVesting, testToken, owner, address1, address2, EPOCH, moonLabsReferral };
   }
   describe("Ownership", async function () {
     it("Owner should be set", async function () {
@@ -86,27 +86,14 @@ describe("Deployment", async function () {
         .to.emit(moonLabsVesting, "LockCreated")
         .withArgs(owner.address, testToken.address, 1);
     });
-    // it("Should create two vesting instances", async function () {
-    //   const { owner, address1, address2, moonLabsVesting, testToken, EPOCH } = await loadFixture(deployTokenFixture);
+    it("Should create one vesting instance with referral code", async function () {
+      const { owner, address1, address2, moonLabsVesting, testToken, EPOCH, moonLabsReferral } = await loadFixture(deployTokenFixture);
 
-    //   await expect(moonLabsVesting.createLock(testToken.address, [address1.address, address2.address], [200, 300], [EPOCH, EPOCH + 10], [EPOCH + 100000, EPOCH + 20000], { value: ethers.utils.parseEther(".2") }))
-    //     .to.emit(moonLabsVesting, "LockCreated")
-    //     .withArgs(owner.address, testToken.address, 2);
-    // });
-    // it("Should return vesting info of index 0", async function () {
-    //   const { owner, moonLabsVesting, testToken, address1, EPOCH } = await loadFixture(deployTokenFixture);
-
-    //   await expect(moonLabsVesting.createLock(testToken.address, [address1.address], [100], [EPOCH], [EPOCH + 1000], { value: ethers.utils.parseEther(".1") }))
-    //     .to.emit(moonLabsVesting, "LockCreated")
-    //     .withArgs(owner.address, testToken.address, 1);
-
-    //   expect((await moonLabsVesting.getVestingInstance(0)).tokenAddress).to.equal(testToken.address);
-    //   expect((await moonLabsVesting.getVestingInstance(0)).creatorAddress).to.equal(owner.address);
-    //   expect((await moonLabsVesting.getVestingInstance(0)).withdrawAddress).to.equal(address1.address);
-    //   expect((await moonLabsVesting.getVestingInstance(0)).depositAmount).to.equal(100);
-    //   expect((await moonLabsVesting.getVestingInstance(0)).currentAmount).to.equal(100);
-    //   expect((await moonLabsVesting.getVestingInstance(0)).startDate).to.equal(EPOCH);
-    //   expect((await moonLabsVesting.getVestingInstance(0)).endDate).to.equal(EPOCH + 1000);
-    // });
+      await moonLabsReferral.createCode("moon");
+      expect(await moonLabsReferral.checkIfActive("moon")).to.equal(true);
+      await expect(moonLabsVesting.createLockWithCode(testToken.address, [address1.address], [200], [EPOCH], [EPOCH + 10000], "moon", { value: ethers.utils.parseEther(".09") }))
+        .to.emit(moonLabsVesting, "LockCreated")
+        .withArgs(owner.address, testToken.address, 1);
+    });
   });
 });

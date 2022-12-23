@@ -20,12 +20,12 @@ async function main() {
   // const TestToken = await ethers.getContractFactory("TestToken");
   // const testToken = await TestToken.deploy();
 
-  const MoonLabsReferral = await ethers.getContractFactory("MoonLabsReferral");
-  const moonLabsReferral = await MoonLabsReferral.deploy();
+  // const MoonLabsReferral = await ethers.getContractFactory("MoonLabsReferral");
+  // const moonLabsReferral = await MoonLabsReferral.deploy();
 
   const MoonLabsVesting = await ethers.getContractFactory("MoonLabsVesting");
 
-  const moonLabsVesting = await upgrades.deployProxy(MoonLabsVesting, ["0xaD5D813ab94a32bfF64175C73a1bF49D590bB511", 30, "100000000000000000", moonLabsReferral.address, "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"], {
+  const moonLabsVesting = await upgrades.deployProxy(MoonLabsVesting, ["0xaD5D813ab94a32bfF64175C73a1bF49D590bB511", 30, "100000000000000000", "0x3bd920C9cc9a40B9C9135e30ece4D3b49710551A", "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"], {
     initializer: "initialize",
   });
 
