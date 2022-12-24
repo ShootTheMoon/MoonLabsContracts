@@ -190,7 +190,7 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
       if (msg.sender == moonLabsContracts[i]) {
         string memory _c = upper(_code);
         // Add rewards to mapping
-        rewardsEarned[_c] = _value;
+        rewardsEarned[_c] += _value;
       }
     }
   }

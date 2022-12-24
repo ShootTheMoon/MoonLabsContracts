@@ -115,6 +115,26 @@ describe("Deployment", async function () {
         .withArgs(owner.address, testToken.address, 10);
 
       expect(await moonLabsReferral.getRewardsEarned("moon")).to.equal("100000000000000000");
+      it("Should create 10 vesting instances with referral code", async function () {
+        const { owner, moonLabsVesting, testToken, address1, moonLabsReferral } = await loadFixture(deployTokenFixture);
+        await moonLabsReferral.addMoonLabsContract(moonLabsVesting.address);
+        await moonLabsReferral.createCode("moon");
+        expect(await moonLabsReferral.checkIfActive("moon")).to.equal(true);
+        await expect(
+          moonLabsVesting.createLockWithCode(
+            testToken.address,
+            [owner.address, owner.address, owner.address, owner.address, owner.address, owner.address, owner.address, owner.address, owner.address, owner.address],
+            [200, 200, 200, 200, 200, 200, 200, 200, 200, 200],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000],
+            "moon",
+            { value: ethers.utils.parseEther(".9") }
+          )
+        )
+          .to.emit(moonLabsVesting, "LockCreated")
+          .withArgs(owner.address, testToken.address, 10);
+  
+        expect(await moonLabsReferral.getRewardsEarned("moon")).to.equal("200000000000000000");
       await moonLabsReferral.setCodeAddress("moon", address1.address);
       expect(await moonLabsReferral.getRewardsEarned("moon")).to.equal("0");
     });
