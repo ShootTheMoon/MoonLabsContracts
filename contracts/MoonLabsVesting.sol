@@ -66,11 +66,11 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   /*|| === STRUCTS VARIABLES === ||*/
   struct VestingInstance {
     address tokenAddress; // Address of locked token
-    uint totalSupply; // Total supply of token, used for accomodating rebase tokens
+    uint totalSupply; // Total supply of token when lock was created
     address creatorAddress; // Lock creator
     address withdrawAddress; // Withdraw address
-    uint depositAmount; // Initial deposit amount
-    uint currentAmount; // Current tokens in lock
+    uint depositAmount; // Initial deposit amount based on supply of when lock was created
+    uint withdrawnAmount; // Total withdrawn amount based on supply of when lock was created
     uint64 startDate; // Linear lock if !=0. Date when tokens start to unlock
     uint64 endDate; // Date when tokens are fully unlocked
   }
@@ -107,18 +107,19 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   /*|| === PUBLIC FUNCTIONS === ||*/
   // Return claimable tokens
   function getClaimableTokens(uint64 _index) public view returns (uint) {
-    uint _currentAmount = vestingInstance[_index].currentAmount;
+    uint _withdrawnAmmount = vestingInstance[_index].withdrawnAmount;
+    uint _depositAmount = vestingInstance[_index].depositAmount;
     uint64 _endDate = vestingInstance[_index].endDate;
     uint64 _startDate = vestingInstance[_index].startDate;
 
     // Check if the token balance is 0
-    if (_currentAmount == 0) {
+    if (_depositAmount == _withdrawnAmmount) {
       return 0;
     }
 
     // Check if lock is a normal lock
     if (_startDate == 0) {
-      return _endDate <= block.timestamp ? _currentAmount : 0;
+      return _endDate <= block.timestamp ? getSupplyDifference(_index, _depositAmount) : 0;
     }
 
     // If none of the above then the token is a linear lock
@@ -233,6 +234,44 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     emit LockCreated(msg.sender, _tokenAddress, l.length);
   }
 
+  // This function checks if global supply for that token has changed and updates input token amount based off of the difference
+  function getSupplyDifference(uint64 _index, uint _tokenAmount) private view returns (uint) {
+    address _tokenAddress = vestingInstance[_index].tokenAddress;
+    uint _newSupply = IERC20Upgradeable(_tokenAddress).totalSupply();
+    uint _oldSupply = vestingInstance[_index].totalSupply;
+
+    if (_newSupply != _oldSupply) {
+      // Math to supply difference
+      /*
+
+          New Supply
+      ------------------   *   (Tokens Locked)
+           Old New
+    */
+      return (_newSupply / _oldSupply) * _tokenAmount;
+    }
+    return _tokenAmount;
+  }
+
+  // This function checks if global supply for that token has changed and updates input token amount based off of the difference
+  function getInverseSupplyDifference(uint64 _index, uint _tokenAmount) private view returns (uint) {
+    address _tokenAddress = vestingInstance[_index].tokenAddress;
+    uint _newSupply = IERC20Upgradeable(_tokenAddress).totalSupply();
+    uint _oldSupply = vestingInstance[_index].totalSupply;
+
+    if (_newSupply != _oldSupply) {
+      // Math to supply difference
+      /*
+
+          Old Supply
+      ------------------   *   (Tokens Locked)
+          New Supply 
+    */
+      return (_oldSupply / _newSupply) * _tokenAmount;
+    }
+    return _tokenAmount;
+  }
+
   // Claim unlocked tokens
   function withdrawUnlockedTokens(uint64 _index, uint _amount) external withdrawOwner(_index) {
     require(_amount <= getClaimableTokens(_index), "Exceeds withdraw balance");
@@ -240,12 +279,12 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     address _address = vestingInstance[_index].tokenAddress;
 
     // Subtract amount withdrawn from current amount
-    vestingInstance[_index].currentAmount -= _amount;
+    vestingInstance[_index].withdrawnAmount += _amount;
     // Transfer tokens from contract to recipient
     transferTokensTo(vestingInstance[_index].tokenAddress, msg.sender, _amount);
 
     // Delete vesting instance if no tokens are left
-    if (vestingInstance[_index].currentAmount == 0) {
+    if (vestingInstance[_index].withdrawnAmount == vestingInstance[_index].depositAmount) {
       deleteVestingInstance(_index);
     }
     // Emits TokensWithdrawn event
@@ -336,7 +375,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     index++;
 
     // Create new VestingInstance struct and add to index
-    vestingInstance[index] = VestingInstance(_tokenAddress, _totalSupply, msg.sender, l.withdrawAddress, l.depositAmount, l.depositAmount, l.startDate, l.endDate);
+    vestingInstance[index] = VestingInstance(_tokenAddress, _totalSupply, msg.sender, l.withdrawAddress, l.depositAmount, 0, l.startDate, l.endDate);
 
     // Create map to withdraw address
     withdrawToLock[l.withdrawAddress].push(index);
@@ -372,7 +411,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   function calculateLinearWithdraw(uint64 _index) private view returns (uint unlockedTokens) {
     uint64 _endDate = vestingInstance[_index].endDate;
     uint64 _startDate = vestingInstance[_index].startDate;
-    uint _currentAmount = vestingInstance[_index].currentAmount;
+    uint _withdrawnAmmount = vestingInstance[_index].withdrawnAmount;
     uint _depositAmount = vestingInstance[_index].depositAmount;
     uint64 _timeBlock = _endDate - _startDate; // Time from start date to end date
     uint64 _timeElapsed;
@@ -391,7 +430,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
       -----------------------------   -   (Deposit Amount - Current Amount)
                Time Block
     */
-    return MathUpgradeable.mulDiv(_depositAmount, _timeBlock, _timeElapsed) - (_depositAmount - _currentAmount);
+    return getSupplyDifference(_index, (MathUpgradeable.mulDiv(_depositAmount, _timeBlock, _timeElapsed) - (_withdrawnAmmount)));
   }
 
   // Distribute commission
