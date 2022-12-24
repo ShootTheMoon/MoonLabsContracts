@@ -2,11 +2,13 @@
 
 MoonLockVesting.sol - Proxy Contract
 - Users can create vesting instances for other wallets.
-- Users can choose from either a linear lock or a standard(Bulk).
-- Lock type is determined bt startDate, if startDate is 0 then lock is standard(Bulk). This will be abstracted by the front end ui.
+- Users can choose from either a linear lock or a standard(bulk) lock.
+- Lock type is determined bt startDate, if startDate is 0 then lock is standard(bulk). This will be abstracted by the front end ui.
 - Lock creators cannot modify locks once already created.
+- Withdraw owners cannot extend or change lock details
 - Withdraw owners can transfer locks to other addresses.
 - A set percentage of eth derived from vesting creations is used to buyback and burn the MLAB native token.
+- MLAb tokens are only bought and burnt when the eth threshold is met to save gas
 - Users can input a referral code and receive X percent discount while the referral code owner receives X percent of the sale.
 
 MoonLockReferral.sol - Standard Contract
@@ -21,5 +23,4 @@ MoonLockReferral.sol - Standard Contract
 
 
 To be added:
-- A way to accommodate rebase tokens or tokens where total supply fluctuates 
-- More efficient way to distribute commission rewards
+- A way to accommodate rebase tokens or tokens where total supply fluctuates.
