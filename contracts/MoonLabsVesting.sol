@@ -63,6 +63,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   /*|| === STRUCTS VARIABLES === ||*/
   struct VestingInstance {
     address tokenAddress; // Address of locked token
+    uint totalSupply; // Total supply of token, used for accomodating rebase tokens
     address creatorAddress; // Lock creator
     address withdrawAddress; // Withdraw address
     uint depositAmount; // Initial deposit amount
@@ -71,9 +72,23 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     uint64 endDate; // Date when tokens are fully unlocked
   }
 
+  struct LockParams {
+    address creatorAddress; // Lock creator
+    address withdrawAddress; // Withdraw address
+    uint depositAmount; // Initial deposit amount
+    uint currentAmount; // Current tokens in lock
+    uint64 startDate; // Linear lock if !=0. Date when tokens start to unlock
+    uint64 endDate; // Date when tokens are fully unlocked
+  }
+
+  struct TokenInfo {
+    uint totalSupply;
+    uint64[] tokenLocks;
+  }
+
   /*|| === MAPPINGS === ||*/
-  mapping(address => uint64[]) private withdrawToLock;
-  mapping(address => uint64[]) private tokenToLock;
+  mapping(address => uint64[]) private withdrawToLock; // Map all locks to withdraw address
+  mapping(address => TokenInfo) private tokenInfo; // Map all locks to token struct
   mapping(uint64 => VestingInstance) private vestingInstance;
 
   /*|| === MODIFIERS === ||*/
@@ -132,44 +147,38 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   /*|| === EXTERNAL FUNCTIONS === ||*/
 
   // Create vesting instance(s) paid for in token percentage
-  function createLockPercent(address _tokenAddress, address[] calldata _withdrawAddress, uint64[] calldata _depositAmount, uint64[] calldata _startDate, uint64[] calldata _endDate) external {
-    // Check if all arrays are same the size
-    require(_withdrawAddress.length == _depositAmount.length && _depositAmount.length == _endDate.length && _endDate.length == _startDate.length, "Unequal array lengths");
-
+  function createLockPercent(address _tokenAddress, LockParams[] calldata l) external {
+    uint _totalSupply = IERC20Upgradeable(_tokenAddress).totalSupply();
     uint _totalDepositAmount;
-    for (uint64 i; i < _withdrawAddress.length; i++) {
-      _totalDepositAmount += _depositAmount[i];
-      createVestingInstance(_tokenAddress, _withdrawAddress[i], _depositAmount[i], _startDate[i], _endDate[i]);
+    for (uint64 i; i < l.length; i++) {
+      _totalDepositAmount += l[i].depositAmount;
+      createVestingInstance(_tokenAddress, _totalSupply, l[i].withdrawAddress, l[i].depositAmount, l[i].startDate, l[i].endDate);
     }
-
-    // Transfer tokens from sender to contract
-    transferTokensFrom(_tokenAddress, _totalDepositAmount, msg.sender); // Move to function to avoid "Stack too deep error"
 
     uint _tokenFee = (_totalDepositAmount * percentLockPrice) / 1000;
 
+    transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount); // Move to function to avoid "Stack too deep error"
+
     // Transfer token fees to collector address
-    transferTokensTo(_tokenAddress, _tokenFee, feeCollector);
+    transferTokensTo(_tokenAddress, feeCollector, _tokenFee);
 
     // Emit lock created event
-    emit LockCreated(msg.sender, _tokenAddress, _depositAmount.length);
+    emit LockCreated(msg.sender, _tokenAddress, l.length);
   }
 
   // Create vesting instance(s) paid for in eth
-  function createLockEth(address _tokenAddress, address[] calldata _withdrawAddress, uint64[] calldata _depositAmount, uint64[] calldata _startDate, uint64[] calldata _endDate) external payable {
-    // Check if all arrays are same the size
-    require(_withdrawAddress.length == _depositAmount.length && _depositAmount.length == _endDate.length && _endDate.length == _startDate.length, "Unequal array lengths");
+  function createLockEth(address _tokenAddress, LockParams[] calldata l) external payable {
     // Check if msg value is correct
-    require(msg.value == ethLockPrice * _withdrawAddress.length, "Incorrect price");
+    require(msg.value == ethLockPrice * l.length, "Incorrect price");
 
+    uint _totalSupply = IERC20Upgradeable(_tokenAddress).totalSupply();
     uint _totalDepositAmount;
-
-    for (uint64 i; i < _withdrawAddress.length; i++) {
-      _totalDepositAmount += _depositAmount[i];
-      createVestingInstance(_tokenAddress, _withdrawAddress[i], _depositAmount[i], _startDate[i], _endDate[i]);
+    for (uint64 i; i < l.length; i++) {
+      _totalDepositAmount += l[i].depositAmount;
+      createVestingInstance(_tokenAddress, _totalSupply, l[i].withdrawAddress, l[i].depositAmount, l[i].startDate, l[i].endDate);
     }
 
-    // Transfer tokens from sender to contract
-    transferTokensFrom(_tokenAddress, _totalDepositAmount, msg.sender); // Move to function to avoid "Stack too deep error"
+    transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount); // Move to function to avoid "Stack too deep error"
 
     // Buy tokenToBurn via uniswap router and send to dead address
     address[] memory _path = new address[](2);
@@ -179,33 +188,29 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     routerContract.swapExactETHForTokensSupportingFeeOnTransferTokens{ value: (msg.value * burnPercent) / 100 }(0, _path, 0x000000000000000000000000000000000000dEaD, block.timestamp);
 
     // Emit lock created event
-    emit LockCreated(msg.sender, _tokenAddress, _depositAmount.length);
+    emit LockCreated(msg.sender, _tokenAddress, l.length);
   }
 
   // Create vesting instance(s) with referral code
-  function createLockWithCodeEth(address _tokenAddress, address[] calldata _withdrawAddress, uint64[] calldata _depositAmount, uint64[] calldata _startDate, uint64[] calldata _endDate, string memory _code) external payable {
-    // Check if all arrays are same the size
-    require(_withdrawAddress.length == _depositAmount.length && _depositAmount.length == _endDate.length && _endDate.length == _startDate.length, "Unequal array lengths");
-
+  function createLockWithCodeEth(address _tokenAddress, LockParams[] calldata l, string memory _code) external payable {
     // Check for referral valid code
     require(referralContract.checkIfActive(_code) == true, "Invalid code");
     // Calculate discount
-    uint _discount = (((ethLockPrice * codeDiscount) / 100) * _withdrawAddress.length);
+    uint _discount = (((ethLockPrice * codeDiscount) / 100) * l.length);
     // Calcuate commission
-    uint _commission = (((ethLockPrice * codeCommission) / 100) * _withdrawAddress.length);
+    uint _commission = (((ethLockPrice * codeCommission) / 100) * l.length);
     // Check if msg value is correct
-    require(msg.value == (ethLockPrice * _withdrawAddress.length - _discount), "Incorrect price");
+    require(msg.value == (ethLockPrice * l.length - _discount), "Incorrect price");
     // Distribute commission
     distributeCommission(_code, _commission);
 
+    uint _totalSupply = IERC20Upgradeable(_tokenAddress).totalSupply();
     uint _totalDepositAmount;
-
-    for (uint64 i; i < _withdrawAddress.length; i++) {
-      _totalDepositAmount += _depositAmount[i];
-      createVestingInstance(_tokenAddress, _withdrawAddress[i], _depositAmount[i], _startDate[i], _endDate[i]);
+    for (uint64 i; i < l.length; i++) {
+      _totalDepositAmount += l[i].depositAmount;
+      createVestingInstance(_tokenAddress, _totalSupply, l[i].withdrawAddress, l[i].depositAmount, l[i].startDate, l[i].endDate);
     }
-    // Transfer tokens from sender to contract
-    transferTokensFrom(_tokenAddress, _totalDepositAmount, msg.sender); // Move to function to avoid "Stack too deep error"
+    transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount); // Move to function to avoid "Stack too deep error"
 
     // Buy tokenToBurn via uniswap router and send to dead address
     address[] memory _path = new address[](2);
@@ -215,7 +220,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     routerContract.swapExactETHForTokensSupportingFeeOnTransferTokens{ value: (msg.value * burnPercent) / 100 }(0, _path, 0x000000000000000000000000000000000000dEaD, block.timestamp);
 
     // Emit lock created event
-    emit LockCreated(msg.sender, _tokenAddress, _depositAmount.length);
+    emit LockCreated(msg.sender, _tokenAddress, l.length);
   }
 
   // Claim unlocked tokens
@@ -227,7 +232,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     // Subtract amount withdrawn from current amount
     vestingInstance[_index].currentAmount -= _amount;
     // Transfer tokens from contract to recipient
-    transferTokensTo(vestingInstance[_index].tokenAddress, _amount, msg.sender);
+    transferTokensTo(vestingInstance[_index].tokenAddress, msg.sender, _amount);
 
     // Delete vesting instance if no tokens are left
     if (vestingInstance[_index].currentAmount == 0) {
@@ -297,7 +302,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
   // Return vest index from token address
   function getVestingIndexFromTokenAddress(address _tokenAddress) external view returns (uint64[] memory) {
-    return tokenToLock[_tokenAddress];
+    return tokenInfo[_tokenAddress].tokenLocks;
   }
 
   // Return vesting instance from index
@@ -307,7 +312,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
   /*|| === PRIVATE FUNCTIONS === ||*/
   // Create vesting instance
-  function createVestingInstance(address _tokenAddress, address _withdrawAddress, uint _depositAmount, uint64 _startDate, uint64 _endDate) private {
+  function createVestingInstance(address _tokenAddress, uint _totalSupply, address _withdrawAddress, uint _depositAmount, uint64 _startDate, uint64 _endDate) private {
     require(_depositAmount > 0, "Deposit amount must be greater than 0");
     require(_startDate < _endDate, "Start date must come before end date");
     require(_endDate < 10000000000, "Invalid end date");
@@ -316,22 +321,22 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     index++;
 
     // Create new VestingInstance struct and add to index
-    vestingInstance[index] = VestingInstance(_tokenAddress, msg.sender, _withdrawAddress, _depositAmount, _depositAmount, _startDate, _endDate);
+    vestingInstance[index] = VestingInstance(_tokenAddress, _totalSupply, msg.sender, _withdrawAddress, _depositAmount, _depositAmount, _startDate, _endDate);
 
     // Create map to withdraw address
     withdrawToLock[_withdrawAddress].push(index);
 
     // Create map to token address
-    tokenToLock[_tokenAddress].push(index);
+    tokenInfo[_tokenAddress].tokenLocks.push(index);
   }
 
   // Transfer tokens to contract
-  function transferTokensFrom(address _tokenAddress, uint _amount, address _sender) private {
+  function transferTokensFrom(address _tokenAddress, address _sender, uint _amount) private {
     IERC20Upgradeable(_tokenAddress).safeTransferFrom(_sender, address(this), _amount);
   }
 
   // Transfer tokens to address
-  function transferTokensTo(address _tokenAddress, uint _amount, address _reciever) private {
+  function transferTokensTo(address _tokenAddress, address _reciever, uint _amount) private {
     // Transfer tokens to contract
     IERC20Upgradeable(_tokenAddress).safeTransfer(_reciever, _amount);
   }
