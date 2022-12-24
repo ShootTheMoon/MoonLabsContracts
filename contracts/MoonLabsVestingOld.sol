@@ -32,7 +32,7 @@ interface IMoonLabsReferral {
   function addRewardsEarned(string calldata _code, uint _value) external;
 }
 
-contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
+contract MoonLabsVestingOld is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   using SafeERC20Upgradeable for IERC20Upgradeable;
 
   function initialize(address _tokenToBurn, uint32 _burnPercent, uint32 _percentLockPrice, uint _ethLockPrice, address _feeCollector, address _referralAddress, address _routerAddress) public initializer {

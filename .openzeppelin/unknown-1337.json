@@ -2,7 +2,7 @@
   "manifestVersion": "3.2",
   "admin": {
     "address": "0xe044814c9eD1e6442Af956a817c161192cBaE98F",
-    "txHash": "0x5752418d0eae9c22f3e78d6cbe7704f6a38f9f3f43103f4982e42fc85056d201"
+    "txHash": "0x50c7a2d902d41bd45fc6f3f64f873f65b15577038a02367aa7ded5b300b813dd"
   },
   "proxies": [
     {
@@ -442,7 +442,7 @@
     },
     {
       "address": "0xaB837301d12cDc4b97f1E910FC56C9179894d9cf",
-      "txHash": "0x2ef8f775ebbfc128399a912b2ddde1403e4a4e3be3ac6aa2fb6056188568cbfd",
+      "txHash": "0xa441bf80fe8478fb42c091943f9933018f0efda4eb67362282dda5e276f2c379",
       "kind": "transparent"
     }
   ],
@@ -3339,9 +3339,9 @@
         }
       }
     },
-    "858ea46bac4c28945d8152698c2bb8161bcd0c006c5d5a93cd786abe0cb4b40c": {
+    "37eab2facde71c7c6e54bbb236aa9c3a1f6cef2248dee880b96dcaef7dda2ac3": {
       "address": "0x124dDf9BdD2DdaD012ef1D5bBd77c00F05C610DA",
-      "txHash": "0xe9b5d685fcd1f6820cdd62f669e698e0b99d30718f3a8ac56ba1b4d689301b48",
+      "txHash": "0x8efbb898f3e67cac8493c7772da5b0dadbd57c90d7a6159d9e6d240b071a4529",
       "layout": {
         "solcVersion": "0.8.17",
         "storage": [
@@ -3432,7 +3432,7 @@
             "slot": "154",
             "type": "t_uint256",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:71"
+            "src": "contracts\\MoonLabsVesting.sol:72"
           },
           {
             "label": "burnMeter",
@@ -3448,7 +3448,7 @@
             "slot": "156",
             "type": "t_address",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:73"
+            "src": "contracts\\MoonLabsVesting.sol:72"
           },
           {
             "label": "index",
@@ -3456,7 +3456,7 @@
             "slot": "156",
             "type": "t_uint64",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:74"
+            "src": "contracts\\MoonLabsVesting.sol:73"
           },
           {
             "label": "burnPercent",
@@ -3464,7 +3464,7 @@
             "slot": "156",
             "type": "t_uint32",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:74"
+            "src": "contracts\\MoonLabsVesting.sol:73"
           },
           {
             "label": "percentLockPrice",
@@ -3472,7 +3472,7 @@
             "slot": "157",
             "type": "t_uint32",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:75"
+            "src": "contracts\\MoonLabsVesting.sol:74"
           },
           {
             "label": "tokenToBurn",
@@ -3480,7 +3480,7 @@
             "slot": "157",
             "type": "t_contract(IERC20Upgradeable)451",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:79"
+            "src": "contracts\\MoonLabsVesting.sol:75"
           },
           {
             "label": "routerContract",
@@ -3488,7 +3488,7 @@
             "slot": "158",
             "type": "t_contract(IDEXRouter)2058",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:80"
+            "src": "contracts\\MoonLabsVesting.sol:78"
           },
           {
             "label": "referralContract",
@@ -3496,7 +3496,7 @@
             "slot": "159",
             "type": "t_contract(IMoonLabsReferral)2088",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:80"
+            "src": "contracts\\MoonLabsVesting.sol:79"
           },
           {
             "label": "withdrawToLock",
@@ -3620,7 +3620,7 @@
                 "slot": "4"
               },
               {
-                "label": "currentAmount",
+                "label": "withdrawnAmount",
                 "type": "t_uint256",
                 "offset": 0,
                 "slot": "5"

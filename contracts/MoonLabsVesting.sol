@@ -253,7 +253,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     return _tokenAmount;
   }
 
-  // This function checks if global supply for that token has changed and updates input token amount based off of the difference
+  // This function gets the original token amount after its been converted by getSupplyDifference
   function getInverseSupplyDifference(uint64 _index, uint _tokenAmount) private view returns (uint) {
     address _tokenAddress = vestingInstance[_index].tokenAddress;
     uint _newSupply = IERC20Upgradeable(_tokenAddress).totalSupply();
@@ -278,8 +278,9 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     require(_amount > 0, "Cannot withdraw 0 tokens");
     address _address = vestingInstance[_index].tokenAddress;
 
-    // Subtract amount withdrawn from current amount
-    vestingInstance[_index].withdrawnAmount += _amount;
+    // Subtract add amount to be withdrawn to withdrawnAmount
+    vestingInstance[_index].withdrawnAmount += getInverseSupplyDifference(_index, _amount);
+
     // Transfer tokens from contract to recipient
     transferTokensTo(vestingInstance[_index].tokenAddress, msg.sender, _amount);
 
