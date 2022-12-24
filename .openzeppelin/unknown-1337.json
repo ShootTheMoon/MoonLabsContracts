@@ -2,7 +2,7 @@
   "manifestVersion": "3.2",
   "admin": {
     "address": "0xe044814c9eD1e6442Af956a817c161192cBaE98F",
-    "txHash": "0xb05dd875450294dcf557acf288d5c978112c8bdebdbb6b3c1555a11efbaabb03"
+    "txHash": "0xb2bc88519051b259189c40d3fa1efbd6a2f9ea86d4350c1dccc29df04b4399b8"
   },
   "proxies": [
     {
@@ -442,7 +442,7 @@
     },
     {
       "address": "0xaB837301d12cDc4b97f1E910FC56C9179894d9cf",
-      "txHash": "0x4a9b271fcc34d0f4d82a543c51d6cd4bf247248de1aef1ca32273663b0d0a5c1",
+      "txHash": "0x9f9c401c74872b290cda44accdcf273b250280d6ab549d0ce7e4b561cd3710c7",
       "kind": "transparent"
     }
   ],
@@ -3339,9 +3339,9 @@
         }
       }
     },
-    "ed135fc273af8c583ae9a678111da7979f95aa789c21c10bcf80ded4161abac7": {
+    "33455398b6736cc22b0b2993452340736b695bc401aa4b51643f69e52fd56b93": {
       "address": "0x124dDf9BdD2DdaD012ef1D5bBd77c00F05C610DA",
-      "txHash": "0x47837d4a9475630c25635da475967f342df9cd9a5a2ffb308745fe339cc3b32d",
+      "txHash": "0xe2e15d47aa17363c81953ea8dd1838bb914985c33df29b1235fab88b721c5a90",
       "layout": {
         "solcVersion": "0.8.17",
         "storage": [
@@ -3408,7 +3408,7 @@
             "slot": "151",
             "type": "t_uint256",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:67"
+            "src": "contracts\\MoonLabsVesting.sol:66"
           },
           {
             "label": "codeDiscount",
@@ -3416,7 +3416,7 @@
             "slot": "152",
             "type": "t_uint256",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:68"
+            "src": "contracts\\MoonLabsVesting.sol:67"
           },
           {
             "label": "codeCommission",
@@ -3448,7 +3448,7 @@
             "slot": "154",
             "type": "t_uint32",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:74"
+            "src": "contracts\\MoonLabsVesting.sol:71"
           },
           {
             "label": "percentLockPrice",
@@ -3456,7 +3456,7 @@
             "slot": "155",
             "type": "t_uint32",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:75"
+            "src": "contracts\\MoonLabsVesting.sol:72"
           },
           {
             "label": "tokenToBurn",
@@ -3480,7 +3480,7 @@
             "slot": "157",
             "type": "t_contract(IMoonLabsReferral)2088",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:79"
+            "src": "contracts\\MoonLabsVesting.sol:77"
           },
           {
             "label": "withdrawToLock",
@@ -3488,23 +3488,23 @@
             "slot": "158",
             "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:89"
+            "src": "contracts\\MoonLabsVesting.sol:102"
           },
           {
-            "label": "tokenToLock",
+            "label": "tokenInfo",
             "offset": 0,
             "slot": "159",
-            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
+            "type": "t_mapping(t_address,t_struct(TokenInfo)2216_storage)",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:91"
+            "src": "contracts\\MoonLabsVesting.sol:103"
           },
           {
             "label": "vestingInstance",
             "offset": 0,
             "slot": "160",
-            "type": "t_mapping(t_uint64,t_struct(VestingInstance)2199_storage)",
+            "type": "t_mapping(t_uint64,t_struct(VestingInstance)2201_storage)",
             "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:93"
+            "src": "contracts\\MoonLabsVesting.sol:106"
           }
         ],
         "types": {
@@ -3544,11 +3544,33 @@
             "label": "mapping(address => uint64[])",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_uint64,t_struct(VestingInstance)2199_storage)": {
+          "t_mapping(t_address,t_struct(TokenInfo)2216_storage)": {
+            "label": "mapping(address => struct MoonLabsVesting.TokenInfo)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint64,t_struct(VestingInstance)2201_storage)": {
             "label": "mapping(uint64 => struct MoonLabsVesting.VestingInstance)",
             "numberOfBytes": "32"
           },
-          "t_struct(VestingInstance)2199_storage": {
+          "t_struct(TokenInfo)2216_storage": {
+            "label": "struct MoonLabsVesting.TokenInfo",
+            "members": [
+              {
+                "label": "totalSupply",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "tokenLocks",
+                "type": "t_array(t_uint64)dyn_storage",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(VestingInstance)2201_storage": {
             "label": "struct MoonLabsVesting.VestingInstance",
             "members": [
               {
@@ -3558,43 +3580,49 @@
                 "slot": "0"
               },
               {
-                "label": "creatorAddress",
-                "type": "t_address",
+                "label": "totalSupply",
+                "type": "t_uint256",
                 "offset": 0,
                 "slot": "1"
               },
               {
-                "label": "withdrawAddress",
+                "label": "creatorAddress",
                 "type": "t_address",
                 "offset": 0,
                 "slot": "2"
               },
               {
-                "label": "depositAmount",
-                "type": "t_uint256",
+                "label": "withdrawAddress",
+                "type": "t_address",
                 "offset": 0,
                 "slot": "3"
               },
               {
-                "label": "currentAmount",
+                "label": "depositAmount",
                 "type": "t_uint256",
                 "offset": 0,
                 "slot": "4"
               },
               {
+                "label": "currentAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
                 "label": "startDate",
                 "type": "t_uint64",
                 "offset": 0,
-                "slot": "5"
+                "slot": "6"
               },
               {
                 "label": "endDate",
                 "type": "t_uint64",
                 "offset": 8,
-                "slot": "5"
+                "slot": "6"
               }
             ],
-            "numberOfBytes": "192"
+            "numberOfBytes": "224"
           },
           "t_uint256": {
             "label": "uint256",

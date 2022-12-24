@@ -146,7 +146,8 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
   // Create vesting instance(s) paid for in token percentage
   function createLockPercent(address _tokenAddress, LockParams[] calldata l) external {
-    uint _totalSupply = IERC20Upgradeable(_tokenAddress).totalSupply();
+    IERC20Upgradeable _token = IERC20Upgradeable(_tokenAddress);
+    uint _totalSupply = _token.totalSupply();
     uint _totalDepositAmount;
     for (uint64 i; i < l.length; i++) {
       _totalDepositAmount += l[i].depositAmount;
@@ -155,7 +156,8 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     uint _tokenFee = (_totalDepositAmount * percentLockPrice) / 1000;
 
-    transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount); // Move to function to avoid "Stack too deep error"
+    transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount);
+    _token.safeTransferFrom(msg.sender, address(this), _totalDepositAmount);
 
     // Transfer token fees to collector address
     transferTokensTo(_tokenAddress, feeCollector, _tokenFee);
@@ -169,14 +171,16 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     // Check if msg value is correct
     require(msg.value == ethLockPrice * l.length, "Incorrect price");
 
-    uint _totalSupply = IERC20Upgradeable(_tokenAddress).totalSupply();
+    IERC20Upgradeable _token = IERC20Upgradeable(_tokenAddress);
+    uint _totalSupply = _token.totalSupply();
     uint _totalDepositAmount;
     for (uint64 i; i < l.length; i++) {
       _totalDepositAmount += l[i].depositAmount;
       createVestingInstance(_tokenAddress, _totalSupply, l[i]);
     }
 
-    transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount); // Move to function to avoid "Stack too deep error"
+    transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount);
+    _token.safeTransferFrom(msg.sender, address(this), _totalDepositAmount);
 
     // Buy tokenToBurn via uniswap router and send to dead address
     address[] memory _path = new address[](2);
@@ -202,13 +206,16 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     // Distribute commission
     distributeCommission(_code, _commission);
 
-    uint _totalSupply = IERC20Upgradeable(_tokenAddress).totalSupply();
+    IERC20Upgradeable _token = IERC20Upgradeable(_tokenAddress);
+    uint _totalSupply = _token.totalSupply();
     uint _totalDepositAmount;
     for (uint64 i; i < l.length; i++) {
       _totalDepositAmount += l[i].depositAmount;
       createVestingInstance(_tokenAddress, _totalSupply, l[i]);
     }
-    transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount); // Move to function to avoid "Stack too deep error"
+
+    transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount);
+    _token.safeTransferFrom(msg.sender, address(this), _totalDepositAmount);
 
     // Buy tokenToBurn via uniswap router and send to dead address
     address[] memory _path = new address[](2);
