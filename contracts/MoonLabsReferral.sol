@@ -27,12 +27,12 @@ interface IMoonLabsReferral {
 
 contract MoonLabsReferral is IMoonLabsReferral, Ownable {
   /*|| === STATE VARIABLES === ||*/
-  int public INDEX;
-  string[] private RESERVED_CODES;
+  int public index;
+  string[] private reservedCodes;
 
   /*|| === MAPPINGS === ||*/
-  mapping(address => string) private ADDRESS_CODE;
-  mapping(string => address) private CODE_ADDRESS;
+  mapping(address => string) private addressToCode;
+  mapping(string => address) private codeToAddress;
 
   /*|| === PUBLIC FUNCTIONS === ||*/
 
@@ -41,7 +41,7 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     // Convert input to uppercase
     string memory _c = upper(_code);
     // Check if code is in use
-    if (CODE_ADDRESS[_c] == address(0)) return false;
+    if (codeToAddress[_c] == address(0)) return false;
     return true;
   }
 
@@ -49,9 +49,9 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
   function checkIfReserved(string memory _code) public view returns (bool) {
     // Convert input to uppercase
     string memory _c = upper(_code);
-    for (uint16 i = 0; i < RESERVED_CODES.length; i++) {
+    for (uint16 i = 0; i < reservedCodes.length; i++) {
       // Comapre two strings
-      if (keccak256(abi.encodePacked(_c)) == keccak256(abi.encodePacked(RESERVED_CODES[i]))) return true;
+      if (keccak256(abi.encodePacked(_c)) == keccak256(abi.encodePacked(reservedCodes[i]))) return true;
     }
     return false;
   }
@@ -62,11 +62,11 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     string memory _c = upper(_code);
     // Check if code is reserved
     require(checkIfReserved(_c) == true, "Code not reserved");
-    for (uint16 i = 0; i < RESERVED_CODES.length; i++) {
+    for (uint16 i = 0; i < reservedCodes.length; i++) {
       // Comapre two strings
-      if (keccak256(abi.encodePacked(_c)) == keccak256(abi.encodePacked(RESERVED_CODES[i]))) {
-        RESERVED_CODES[i] = RESERVED_CODES[RESERVED_CODES.length - 1];
-        RESERVED_CODES.pop();
+      if (keccak256(abi.encodePacked(_c)) == keccak256(abi.encodePacked(reservedCodes[i]))) {
+        reservedCodes[i] = reservedCodes[reservedCodes.length - 1];
+        reservedCodes.pop();
       }
     }
   }
@@ -79,21 +79,21 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     // Check if code is in use
     require(checkIfActive(_code) == false, "Code in use");
     // Check if caller address has a code
-    require(keccak256(abi.encodePacked(ADDRESS_CODE[msg.sender])) == keccak256(abi.encodePacked("")), "Address in use");
+    require(keccak256(abi.encodePacked(addressToCode[msg.sender])) == keccak256(abi.encodePacked("")), "Address in use");
     // Check if code is reserved
     require(checkIfReserved(_c) == false, "Code reserved");
     // Create new mappings
-    ADDRESS_CODE[msg.sender] = _c;
-    CODE_ADDRESS[_c] = msg.sender;
-    INDEX++;
+    addressToCode[msg.sender] = _c;
+    codeToAddress[_c] = msg.sender;
+    index++;
   }
 
   function deleteCode() external {
     // Check if address has a code
-    require(keccak256(abi.encodePacked(ADDRESS_CODE[msg.sender])) != keccak256(abi.encodePacked("")), "Address not in use");
-    delete CODE_ADDRESS[ADDRESS_CODE[msg.sender]];
-    delete ADDRESS_CODE[msg.sender];
-    INDEX--;
+    require(keccak256(abi.encodePacked(addressToCode[msg.sender])) != keccak256(abi.encodePacked("")), "Address not in use");
+    delete codeToAddress[addressToCode[msg.sender]];
+    delete addressToCode[msg.sender];
+    index--;
   }
 
   // Change address of referral code
@@ -101,24 +101,24 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     // Convert input to uppercase
     string memory _c = upper(_code);
     // Check if sender owns code
-    require(msg.sender == CODE_ADDRESS[_c], "You do not own this code");
+    require(msg.sender == codeToAddress[_c], "You do not own this code");
     // Check if recipient address has a code
-    require(keccak256(abi.encodePacked(ADDRESS_CODE[_address])) == keccak256(abi.encodePacked("")), "Address in use");
+    require(keccak256(abi.encodePacked(addressToCode[_address])) == keccak256(abi.encodePacked("")), "Address in use");
     // Delete mapping from address to code
-    delete ADDRESS_CODE[msg.sender];
+    delete addressToCode[msg.sender];
     // Create new mappings
-    ADDRESS_CODE[_address] = _c;
-    CODE_ADDRESS[_c] = _address;
+    addressToCode[_address] = _c;
+    codeToAddress[_c] = _address;
   }
 
   function getCodeByAddress(address _address) external view override returns (string memory) {
-    return ADDRESS_CODE[_address];
+    return addressToCode[_address];
   }
 
   function getAddressByCode(string memory _code) external view override returns (address) {
     // Convert input to uppercase
     string memory _c = upper(_code);
-    return CODE_ADDRESS[_c];
+    return codeToAddress[_c];
   }
 
   // Reserve referral code(s) and push to array
@@ -127,11 +127,11 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
       // Convert input to uppercase
       string memory _c = upper(_code[i]);
       // Check if code is in use
-      require(CODE_ADDRESS[_c] == address(0), "Code in use");
+      require(codeToAddress[_c] == address(0), "Code in use");
       // Check if code is reserved
       require(checkIfReserved(_c) == false, "Code is reserved");
       // Push code to reserved list
-      RESERVED_CODES.push(_c);
+      reservedCodes.push(_c);
     }
   }
 
@@ -142,13 +142,13 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     // Check if code is not reserved
     require(checkIfReserved(_c) == true, "Code not reserved");
     // Check if recipient address has a code
-    require(keccak256(abi.encodePacked(ADDRESS_CODE[_address])) == keccak256(abi.encodePacked("")), "Address in use");
+    require(keccak256(abi.encodePacked(addressToCode[_address])) == keccak256(abi.encodePacked("")), "Address in use");
     // Remove code from reserved list
     removeReservedCode(_c);
     // Create new mappings
-    ADDRESS_CODE[_address] = _c;
-    CODE_ADDRESS[_c] = _address;
-    INDEX++;
+    addressToCode[_address] = _c;
+    codeToAddress[_c] = _address;
+    index++;
   }
 
   function deleteCodeOwner(string calldata _code) external onlyOwner {
@@ -157,9 +157,9 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     // Check if code is bound to an address
     require(checkIfActive(_code) == true, "Code not in use");
     // Delete mappings
-    delete ADDRESS_CODE[CODE_ADDRESS[_c]];
-    delete CODE_ADDRESS[_c];
-    INDEX--;
+    delete addressToCode[codeToAddress[_c]];
+    delete codeToAddress[_c];
+    index--;
   }
 
   /*|| === PRIVATE FUNCTIONS === ||*/

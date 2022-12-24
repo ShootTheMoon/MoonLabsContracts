@@ -11,8 +11,21 @@ module.exports = {
     compilers: [
       {
         version: "0.8.7",
+        settings: {
+          optimizer: {
+            // Toggles whether the optimizer is on or off.
+            // It's good to keep it off for development
+            // and turn on for when getting ready to launch.
+            enabled: true,
+            // The number of runs specifies roughly how often
+            // the deployed code will be executed across the
+            // life-time of the contract.
+            runs: 10000,
+          },
+        },
       },
     ],
+
     overrides: {
       "contracts/UniswapV2Router02.sol": {
         version: "0.6.6",
