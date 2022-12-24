@@ -142,9 +142,10 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
       createVestingInstance(_tokenAddress, _withdrawAddress[i], _depositAmount[i], _startDate[i], _endDate[i]);
     }
 
-    uint _tokenFee = (_totalDepositAmount * percentLockPrice) / 1000;
-
+    // Transfer tokens from sender to contract
     transferTokensFrom(_tokenAddress, _totalDepositAmount, msg.sender); // Move to function to avoid "Stack too deep error"
+
+    uint _tokenFee = (_totalDepositAmount * percentLockPrice) / 1000;
 
     // Transfer token fees to collector address
     transferTokensTo(_tokenAddress, _tokenFee, feeCollector);
@@ -161,11 +162,13 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     require(msg.value == ethLockPrice * _withdrawAddress.length, "Incorrect price");
 
     uint _totalDepositAmount;
+
     for (uint64 i; i < _withdrawAddress.length; i++) {
       _totalDepositAmount += _depositAmount[i];
       createVestingInstance(_tokenAddress, _withdrawAddress[i], _depositAmount[i], _startDate[i], _endDate[i]);
     }
 
+    // Transfer tokens from sender to contract
     transferTokensFrom(_tokenAddress, _totalDepositAmount, msg.sender); // Move to function to avoid "Stack too deep error"
 
     // Buy tokenToBurn via uniswap router and send to dead address
@@ -201,7 +204,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
       _totalDepositAmount += _depositAmount[i];
       createVestingInstance(_tokenAddress, _withdrawAddress[i], _depositAmount[i], _startDate[i], _endDate[i]);
     }
-
+    // Transfer tokens from sender to contract
     transferTokensFrom(_tokenAddress, _totalDepositAmount, msg.sender); // Move to function to avoid "Stack too deep error"
 
     // Buy tokenToBurn via uniswap router and send to dead address
