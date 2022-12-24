@@ -15,7 +15,7 @@
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-pragma solidity ^0.8.7;
+pragma solidity ^0.8.17;
 
 interface IMoonLabsReferral {
   function checkIfActive(string calldata _code) external view returns (bool);
@@ -23,19 +23,22 @@ interface IMoonLabsReferral {
   function getCodeByAddress(address _address) external view returns (string memory);
 
   function getAddressByCode(string memory _code) external view returns (address);
+
+  function addRewardsEarned(string calldata _code, uint _value) external;
 }
 
 contract MoonLabsReferral is IMoonLabsReferral, Ownable {
   /*|| === STATE VARIABLES === ||*/
   int public index;
   string[] private reservedCodes;
+  address[] public moonLabsContracts;
 
   /*|| === MAPPINGS === ||*/
   mapping(address => string) private addressToCode;
   mapping(string => address) private codeToAddress;
+  mapping(string => uint) private rewardsEarned;
 
   /*|| === PUBLIC FUNCTIONS === ||*/
-
   // Check if code is in use
   function checkIfActive(string calldata _code) public view override returns (bool) {
     // Convert input to uppercase
@@ -90,9 +93,12 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
 
   function deleteCode() external {
     // Check if address has a code
-    require(keccak256(abi.encodePacked(addressToCode[msg.sender])) != keccak256(abi.encodePacked("")), "Address not in use");
-    delete codeToAddress[addressToCode[msg.sender]];
+    string memory _c = upper(addressToCode[msg.sender]);
+    // Check if code is in use
+    require(keccak256(abi.encodePacked(_c)) != keccak256(abi.encodePacked("")), "Address not in use");
+    delete codeToAddress[_c];
     delete addressToCode[msg.sender];
+    delete rewardsEarned[_c];
     index--;
   }
 
@@ -104,8 +110,8 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     require(msg.sender == codeToAddress[_c], "You do not own this code");
     // Check if recipient address has a code
     require(keccak256(abi.encodePacked(addressToCode[_address])) == keccak256(abi.encodePacked("")), "Address in use");
-    // Delete mapping from address to code
-    delete addressToCode[msg.sender];
+    // Reset amount earned
+    delete rewardsEarned[_c];
     // Create new mappings
     addressToCode[_address] = _c;
     codeToAddress[_c] = _address;
@@ -159,7 +165,41 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     // Delete mappings
     delete addressToCode[codeToAddress[_c]];
     delete codeToAddress[_c];
+    delete rewardsEarned[_c];
     index--;
+  }
+
+  // Add address to approved mlab contracts
+  function addMoonLabsContract(address _address) external onlyOwner {
+    moonLabsContracts.push(_address);
+  }
+
+  // Remove address to approved mlab contracts
+  function removeMoonLabsContract(address _address) external onlyOwner {
+    for (uint32 i = 0; i < moonLabsContracts.length; i++) {
+      if (_address == moonLabsContracts[i]) {
+        moonLabsContracts[i] = moonLabsContracts[moonLabsContracts.length - 1];
+        moonLabsContracts.pop();
+      }
+    }
+  }
+
+  // Function is used inside other mlab contracts
+  function addRewardsEarned(string calldata _code, uint _value) external override {
+    for (uint32 i = 0; i < moonLabsContracts.length; i++) {
+      if (msg.sender == moonLabsContracts[i]) {
+        string memory _c = upper(_code);
+        // Add rewards to mapping
+        rewardsEarned[_c] = _value;
+      }
+    }
+  }
+
+  // Get rewards a referal code has earned on that current address
+  function getRewardsEarned(string calldata _code) external view returns (uint) {
+    // Convert input to uppercase
+    string memory _c = upper(_code);
+    return rewardsEarned[_c];
   }
 
   /*|| === PRIVATE FUNCTIONS === ||*/

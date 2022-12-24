@@ -15,7 +15,7 @@
 //
 // Website: https://www.moonlabs.site/
 
-pragma solidity ^0.8.7;
+pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
@@ -28,6 +28,8 @@ interface IMoonLabsReferral {
   function checkIfActive(string calldata _code) external view returns (bool);
 
   function getAddressByCode(string memory _code) external view returns (address);
+
+  function addRewardsEarned(string calldata _code, uint _value) external;
 }
 
 contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
@@ -132,17 +134,11 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     require(msg.value == lockPrice * _withdrawAddress.length, "Incorrect price");
 
     uint _totalDepositAmount;
-
-    for (uint64 i; i < _withdrawAddress.length; i++) {
-      _totalDepositAmount += _depositAmount[i];
-    }
-
-    transferTokens(_tokenAddress, _totalDepositAmount, msg.sender); // Move to function to avoid "Stack too deep error"
-
     for (uint64 i; i < _withdrawAddress.length; i++) {
       createVestingInstance(_tokenAddress, _withdrawAddress[i], _depositAmount[i], _startDate[i], _endDate[i]);
     }
 
+    transferTokens(_tokenAddress, _totalDepositAmount, msg.sender); // Move to function to avoid "Stack too deep error"
     // Buy tokenToBurn via uniswap router and send to dead address
     address[] memory _path = new address[](2);
     _path[0] = routerContract.WETH();
@@ -174,13 +170,10 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     for (uint64 i; i < _withdrawAddress.length; i++) {
       _totalDepositAmount += _depositAmount[i];
+      createVestingInstance(_tokenAddress, _withdrawAddress[i], _depositAmount[i], _startDate[i], _endDate[i]);
     }
 
     transferTokens(_tokenAddress, _totalDepositAmount, msg.sender); // Move to function to avoid "Stack too deep error"
-
-    for (uint64 i; i < _withdrawAddress.length; i++) {
-      createVestingInstance(_tokenAddress, _withdrawAddress[i], _depositAmount[i], _startDate[i], _endDate[i]);
-    }
 
     // Buy tokenToBurn via uniswap router and send to dead address
     address[] memory _path = new address[](2);
@@ -336,5 +329,6 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   function distributeCommission(string memory _code, uint _value) private {
     address payable to = payable(referralContract.getAddressByCode(_code));
     to.transfer(_value);
+    referralContract.addRewardsEarned(_code, _value);
   }
 }

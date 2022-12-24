@@ -79,21 +79,44 @@ describe("Deployment", async function () {
     });
   });
   describe("Vesting Creation", async function () {
-    it("Should create single vesting instance", async function () {
-      const { owner, address1, moonLabsVesting, testToken, EPOCH } = await loadFixture(deployTokenFixture);
+    it("Should create 10 vesting instances", async function () {
+      const { owner, moonLabsVesting, testToken } = await loadFixture(deployTokenFixture);
 
-      await expect(moonLabsVesting.createLock(testToken.address, [address1.address], [100], [EPOCH], [EPOCH + 1000], { value: ethers.utils.parseEther(".1") }))
+      await expect(
+        moonLabsVesting.createLock(
+          testToken.address,
+          [owner.address, owner.address, owner.address, owner.address, owner.address, owner.address, owner.address, owner.address, owner.address, owner.address],
+          [200, 200, 200, 200, 200, 200, 200, 200, 200, 200],
+          [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          [10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000],
+          { value: ethers.utils.parseEther("1") }
+        )
+      )
         .to.emit(moonLabsVesting, "LockCreated")
-        .withArgs(owner.address, testToken.address, 1);
+        .withArgs(owner.address, testToken.address, 10);
     });
-    it("Should create one vesting instance with referral code", async function () {
-      const { owner, address1, address2, moonLabsVesting, testToken, EPOCH, moonLabsReferral } = await loadFixture(deployTokenFixture);
-
+    it("Should create 10 vesting instances with referral code", async function () {
+      const { owner, moonLabsVesting, testToken, address1, moonLabsReferral } = await loadFixture(deployTokenFixture);
+      await moonLabsReferral.addMoonLabsContract(moonLabsVesting.address);
       await moonLabsReferral.createCode("moon");
       expect(await moonLabsReferral.checkIfActive("moon")).to.equal(true);
-      await expect(moonLabsVesting.createLockWithCode(testToken.address, [address1.address], [200], [EPOCH], [EPOCH + 10000], "moon", { value: ethers.utils.parseEther(".09") }))
+      await expect(
+        moonLabsVesting.createLockWithCode(
+          testToken.address,
+          [owner.address, owner.address, owner.address, owner.address, owner.address, owner.address, owner.address, owner.address, owner.address, owner.address],
+          [200, 200, 200, 200, 200, 200, 200, 200, 200, 200],
+          [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          [10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000],
+          "moon",
+          { value: ethers.utils.parseEther(".9") }
+        )
+      )
         .to.emit(moonLabsVesting, "LockCreated")
-        .withArgs(owner.address, testToken.address, 1);
+        .withArgs(owner.address, testToken.address, 10);
+
+      expect(await moonLabsReferral.getRewardsEarned("moon")).to.equal("100000000000000000");
+      await moonLabsReferral.setCodeAddress("moon", address1.address);
+      expect(await moonLabsReferral.getRewardsEarned("moon")).to.equal("0");
     });
   });
 });
