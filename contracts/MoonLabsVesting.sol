@@ -46,12 +46,15 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     routerContract = IDEXRouter(_routerAddress);
     codeDiscount = 10;
     codeCommission = 10;
+    burnThreshold = 250000000000000000;
   }
 
   /*|| === STATE VARIABLES === ||*/
   uint public ethLockPrice; // Price per eth paid lock
   uint public codeDiscount; // Discount in percentage applied to customer
   uint public codeCommission; // Percentage sent to code owner
+  uint public burnThreshold; // Threshold in wei
+  uint public burnMeter;
   address public feeCollector; // Fee collection address
   uint64 public index; // Lock identifier
   uint32 public burnPercent;
@@ -182,12 +185,10 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount);
     _token.safeTransferFrom(msg.sender, address(this), _totalDepositAmount);
 
-    // Buy tokenToBurn via uniswap router and send to dead address
-    address[] memory _path = new address[](2);
-    _path[0] = routerContract.WETH();
-    _path[1] = address(tokenToBurn);
+    // Add to burn amount burn meter
+    burnMeter += (msg.value * burnPercent) / 100;
 
-    routerContract.swapExactETHForTokensSupportingFeeOnTransferTokens{ value: (msg.value * burnPercent) / 100 }(0, _path, 0x000000000000000000000000000000000000dEaD, block.timestamp);
+    handleBurns();
 
     // Emit lock created event
     emit LockCreated(msg.sender, _tokenAddress, l.length);
@@ -217,12 +218,10 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount);
     _token.safeTransferFrom(msg.sender, address(this), _totalDepositAmount);
 
-    // Buy tokenToBurn via uniswap router and send to dead address
-    address[] memory _path = new address[](2);
-    _path[0] = routerContract.WETH();
-    _path[1] = address(tokenToBurn);
+    // Add to burn amount burn meter
+    burnMeter += (msg.value * burnPercent) / 100;
 
-    routerContract.swapExactETHForTokensSupportingFeeOnTransferTokens{ value: (msg.value * burnPercent) / 100 }(0, _path, 0x000000000000000000000000000000000000dEaD, block.timestamp);
+    handleBurns();
 
     // Emit lock created event
     emit LockCreated(msg.sender, _tokenAddress, l.length);
@@ -268,7 +267,12 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     referralContract = IMoonLabsReferral(_referralAddress);
   }
 
-  // Change lock price in wei
+  // Set burnThreshold in wei
+  function setBurnThreshold(uint _burnThreshold) external onlyOwner {
+    burnThreshold = _burnThreshold;
+  }
+
+  // Set lock price in wei
   function setLockPrice(uint _ethLockPrice) external onlyOwner {
     ethLockPrice = _ethLockPrice;
   }
@@ -389,5 +393,17 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     address payable to = payable(referralContract.getAddressByCode(_code));
     to.transfer(_value);
     referralContract.addRewardsEarned(_code, _value);
+  }
+
+  function handleBurns() private {
+    // Check if threshold is met
+    if (burnMeter >= burnThreshold) {
+      // Buy tokenToBurn via uniswap router and send to dead address
+      address[] memory _path = new address[](2);
+      _path[0] = routerContract.WETH();
+      _path[1] = address(tokenToBurn);
+      routerContract.swapExactETHForTokensSupportingFeeOnTransferTokens{ value: burnMeter }(0, _path, 0x000000000000000000000000000000000000dEaD, block.timestamp);
+      burnMeter = 0;
+    }
   }
 }
