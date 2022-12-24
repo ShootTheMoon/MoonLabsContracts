@@ -91,26 +91,9 @@ describe("Deployment", async function () {
     it("Should create 10 vesting instances paying with Eth", async function () {
       const { owner, moonLabsVesting, testToken } = await loadFixture(deployTokenFixture);
 
-      await expect(
-        moonLabsVesting.createLockEth(
-          testToken.address,
-          [
-            [owner.address, 200, 0, 10000],
-            [owner.address, 200, 0, 10000],
-            [owner.address, 200, 0, 10000],
-            [owner.address, 200, 0, 10000],
-            [owner.address, 200, 0, 10000],
-            [owner.address, 200, 0, 10000],
-            [owner.address, 200, 0, 10000],
-            [owner.address, 200, 0, 10000],
-            [owner.address, 200, 0, 10000],
-            [owner.address, 200, 0, 10000],
-          ],
-          { value: ethers.utils.parseEther("1") }
-        )
-      )
+      await expect(moonLabsVesting.createLockEth(testToken.address, [[owner.address, 200, 0, 10000]], { value: ethers.utils.parseEther(".1") }))
         .to.emit(moonLabsVesting, "LockCreated")
-        .withArgs(owner.address, testToken.address, 10);
+        .withArgs(owner.address, testToken.address, 1);
     });
     it("Should create 10 vesting instances with referral code paying with Eth", async function () {
       const { owner, moonLabsVesting, testToken, moonLabsReferral } = await loadFixture(deployTokenFixture);

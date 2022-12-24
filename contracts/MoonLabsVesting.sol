@@ -149,8 +149,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
   // Create vesting instance(s) paid for in token percentage
   function createLockPercent(address _tokenAddress, LockParams[] calldata l) external {
-    IERC20Upgradeable _token = IERC20Upgradeable(_tokenAddress);
-    uint _totalSupply = _token.totalSupply();
+    uint _totalSupply = IERC20Upgradeable(_tokenAddress).totalSupply();
     uint _totalDepositAmount;
     for (uint64 i; i < l.length; i++) {
       _totalDepositAmount += l[i].depositAmount;
@@ -160,10 +159,13 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     uint _tokenFee = (_totalDepositAmount * percentLockPrice) / 1000;
 
     transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount);
-    _token.safeTransferFrom(msg.sender, address(this), _totalDepositAmount);
+    IERC20Upgradeable(_tokenAddress).safeTransferFrom(msg.sender, address(this), _totalDepositAmount);
 
     // Transfer token fees to collector address
     transferTokensTo(_tokenAddress, feeCollector, _tokenFee);
+
+    // Keep record of total supply
+    tokenInfo[_tokenAddress].totalSupply = _totalSupply;
 
     // Emit lock created event
     emit LockCreated(msg.sender, _tokenAddress, l.length);
@@ -174,8 +176,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     // Check if msg value is correct
     require(msg.value == ethLockPrice * l.length, "Incorrect price");
 
-    IERC20Upgradeable _token = IERC20Upgradeable(_tokenAddress);
-    uint _totalSupply = _token.totalSupply();
+    uint _totalSupply = IERC20Upgradeable(_tokenAddress).totalSupply();
     uint _totalDepositAmount;
     for (uint64 i; i < l.length; i++) {
       _totalDepositAmount += l[i].depositAmount;
@@ -183,12 +184,15 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     }
 
     transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount);
-    _token.safeTransferFrom(msg.sender, address(this), _totalDepositAmount);
+    IERC20Upgradeable(_tokenAddress).safeTransferFrom(msg.sender, address(this), _totalDepositAmount);
 
     // Add to burn amount burn meter
     burnMeter += (msg.value * burnPercent) / 100;
 
     handleBurns();
+
+    // Keep record of total supply
+    tokenInfo[_tokenAddress].totalSupply = _totalSupply;
 
     // Emit lock created event
     emit LockCreated(msg.sender, _tokenAddress, l.length);
@@ -207,8 +211,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     // Distribute commission
     distributeCommission(_code, _commission);
 
-    IERC20Upgradeable _token = IERC20Upgradeable(_tokenAddress);
-    uint _totalSupply = _token.totalSupply();
+    uint _totalSupply = IERC20Upgradeable(_tokenAddress).totalSupply();
     uint _totalDepositAmount;
     for (uint64 i; i < l.length; i++) {
       _totalDepositAmount += l[i].depositAmount;
@@ -216,12 +219,15 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     }
 
     transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount);
-    _token.safeTransferFrom(msg.sender, address(this), _totalDepositAmount);
+    IERC20Upgradeable(_tokenAddress).safeTransferFrom(msg.sender, address(this), _totalDepositAmount);
 
     // Add to burn amount burn meter
     burnMeter += (msg.value * burnPercent) / 100;
 
     handleBurns();
+
+    // Keep record of total supply
+    tokenInfo[_tokenAddress].totalSupply = _totalSupply;
 
     // Emit lock created event
     emit LockCreated(msg.sender, _tokenAddress, l.length);
