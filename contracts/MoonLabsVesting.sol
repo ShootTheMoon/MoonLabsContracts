@@ -73,10 +73,8 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   }
 
   struct LockParams {
-    address creatorAddress; // Lock creator
     address withdrawAddress; // Withdraw address
     uint depositAmount; // Initial deposit amount
-    uint currentAmount; // Current tokens in lock
     uint64 startDate; // Linear lock if !=0. Date when tokens start to unlock
     uint64 endDate; // Date when tokens are fully unlocked
   }
@@ -152,7 +150,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     uint _totalDepositAmount;
     for (uint64 i; i < l.length; i++) {
       _totalDepositAmount += l[i].depositAmount;
-      createVestingInstance(_tokenAddress, _totalSupply, l[i].withdrawAddress, l[i].depositAmount, l[i].startDate, l[i].endDate);
+      createVestingInstance(_tokenAddress, _totalSupply, l[i]);
     }
 
     uint _tokenFee = (_totalDepositAmount * percentLockPrice) / 1000;
@@ -175,7 +173,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     uint _totalDepositAmount;
     for (uint64 i; i < l.length; i++) {
       _totalDepositAmount += l[i].depositAmount;
-      createVestingInstance(_tokenAddress, _totalSupply, l[i].withdrawAddress, l[i].depositAmount, l[i].startDate, l[i].endDate);
+      createVestingInstance(_tokenAddress, _totalSupply, l[i]);
     }
 
     transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount); // Move to function to avoid "Stack too deep error"
@@ -208,7 +206,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     uint _totalDepositAmount;
     for (uint64 i; i < l.length; i++) {
       _totalDepositAmount += l[i].depositAmount;
-      createVestingInstance(_tokenAddress, _totalSupply, l[i].withdrawAddress, l[i].depositAmount, l[i].startDate, l[i].endDate);
+      createVestingInstance(_tokenAddress, _totalSupply, l[i]);
     }
     transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount); // Move to function to avoid "Stack too deep error"
 
@@ -312,19 +310,19 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
   /*|| === PRIVATE FUNCTIONS === ||*/
   // Create vesting instance
-  function createVestingInstance(address _tokenAddress, uint _totalSupply, address _withdrawAddress, uint _depositAmount, uint64 _startDate, uint64 _endDate) private {
-    require(_depositAmount > 0, "Deposit amount must be greater than 0");
-    require(_startDate < _endDate, "Start date must come before end date");
-    require(_endDate < 10000000000, "Invalid end date");
+  function createVestingInstance(address _tokenAddress, uint _totalSupply, LockParams calldata l) private {
+    require(l.depositAmount > 0, "Deposit amount must be greater than 0");
+    require(l.startDate < l.endDate, "Start date must come before end date");
+    require(l.endDate < 10000000000, "Invalid end date");
 
     // Increment index
     index++;
 
     // Create new VestingInstance struct and add to index
-    vestingInstance[index] = VestingInstance(_tokenAddress, _totalSupply, msg.sender, _withdrawAddress, _depositAmount, _depositAmount, _startDate, _endDate);
+    vestingInstance[index] = VestingInstance(_tokenAddress, _totalSupply, msg.sender, l.withdrawAddress, l.depositAmount, l.depositAmount, l.startDate, l.endDate);
 
     // Create map to withdraw address
-    withdrawToLock[_withdrawAddress].push(index);
+    withdrawToLock[l.withdrawAddress].push(index);
 
     // Create map to token address
     tokenInfo[_tokenAddress].tokenLocks.push(index);
