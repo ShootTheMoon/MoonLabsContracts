@@ -155,13 +155,8 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
       createVestingInstance(_tokenAddress, l[i]);
     }
 
-    uint _tokenSupply = tokenInfo[_tokenAddress].tokenSupply;
-    if (_tokenSupply != 0) {
-      tokenInfo[_tokenAddress].tokenSupply = MathUpgradeable.mulDiv(IERC20Upgradeable(_tokenAddress).balanceOf(address(this)), _tokenSupply, _totalDepositAmount);
-    }
-
     // Calculate token fee
-    uint _tokenFee = MathUpgradeable.mulDiv(_totalDepositAmount, percentLockPrice, 1000);
+    uint _tokenFee = MathUpgradeable.mulDiv(_totalDepositAmount, percentLockPrice, 10000);
 
     require((_totalDepositAmount + _tokenFee) <= IERC20Upgradeable(_tokenAddress).balanceOf(msg.sender), "Insignificant token balance");
 
@@ -171,13 +166,6 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     // Check that correct amount of tokens were sent
     require(_amountSent == _totalDepositAmount, "Transfer tax");
-
-    if (_tokenSupply == 0) {
-      _tokenSupply = IERC20Upgradeable(_tokenAddress).balanceOf(address(this));
-    } else {
-      _tokenSupply += getSupplyDifference(_tokenAddress, _amountSent);
-    }
-    tokenInfo[_tokenAddress].tokenSupply = _tokenSupply;
 
     // Transfer token fees to collector address
     transferTokensTo(_tokenAddress, feeCollector, _tokenFee);
@@ -205,14 +193,6 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     // Check that correct amount of tokens were sent
     require(_amountSent == _totalDepositAmount, "Transfer tax");
-
-    uint _tokenSupply = tokenInfo[_tokenAddress].tokenSupply;
-    if (_tokenSupply == 0) {
-      _tokenSupply = IERC20Upgradeable(_tokenAddress).balanceOf(address(this));
-    } else {
-      _tokenSupply += getSupplyDifference(_tokenAddress, _amountSent);
-    }
-    tokenInfo[_tokenAddress].tokenSupply = _tokenSupply;
 
     // Add to burn amount burn meter
     burnMeter += (msg.value * burnPercent) / 100;
@@ -247,14 +227,6 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     // Check that correct amount of tokens were sent
     require(_amountSent == _totalDepositAmount, "Transfer tax");
 
-    uint _tokenSupply = tokenInfo[_tokenAddress].tokenSupply;
-    if (_tokenSupply == 0) {
-      _tokenSupply = IERC20Upgradeable(_tokenAddress).balanceOf(address(this));
-    } else {
-      _tokenSupply += getSupplyDifference(_tokenAddress, _amountSent);
-    }
-    tokenInfo[_tokenAddress].tokenSupply = _tokenSupply;
-
     // Add to burn amount burn meter
     burnMeter += (msg.value * burnPercent) / 100;
 
@@ -268,7 +240,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   }
 
   function getSupplyDifference(address _tokenAddress, uint _amount) private view returns (uint) {
-    return MathUpgradeable.mulDiv(IERC20Upgradeable(_tokenAddress).balanceOf(address(this)), _amount, tokenInfo[_tokenAddress].tokenSupply);
+    return MathUpgradeable.mulDiv(IERC20Upgradeable(_tokenAddress).balanceOf(address(this)), _amount, tokenInfo[_tokenAddress].tokenSupply == 0 ? 1 : tokenInfo[_tokenAddress].tokenSupply);
   }
 
   function getInverseSupplyDifference(address _tokenAddress, uint _amount) private view returns (uint) {
@@ -282,20 +254,22 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     address _tokenAddress = vestingInstance[_index].tokenAddress;
 
-    vestingInstance[_index].withdrawnAmount += getInverseSupplyDifference(_tokenAddress, _amount) + 1;
+    vestingInstance[_index].withdrawnAmount += getInverseSupplyDifference(_tokenAddress, _amount);
     tokenInfo[_tokenAddress].tokenSupply -= getInverseSupplyDifference(_tokenAddress, _amount);
+
+    // Delete vesting instance if no tokens are left
+    if (vestingInstance[_index].withdrawnAmount + 1 >= vestingInstance[_index].depositAmount) {
+      deleteVestingInstance(_index);
+    }
 
     // Transfer tokens from contract to recipient
     transferTokensTo(vestingInstance[_index].tokenAddress, msg.sender, _amount);
-    // Delete vesting instance if no tokens are left
-    if (vestingInstance[_index].withdrawnAmount == vestingInstance[_index].depositAmount) {
-      deleteVestingInstance(_index);
-    }
+
     // Emits TokensWithdrawn event
     emit TokensWithdrawn(msg.sender, _tokenAddress, _index);
   }
 
-  // Claim ETH in contract
+  // Claim ETH in contract900
   function claimETH() external onlyOwner {
     address payable to = payable(msg.sender);
     to.transfer(address(this).balance);
@@ -371,15 +345,24 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   /*|| === PRIVATE FUNCTIONS === ||*/
   // Create vesting instance
   function createVestingInstance(address _tokenAddress, LockParams calldata l) private {
-    require(l.depositAmount >= 100, "Min deposit not met");
     require(l.startDate < l.endDate, "Start date must come before end date");
     require(l.endDate < 10000000000, "Invalid end date");
+
+    uint _amountIn;
+    if (tokenInfo[_tokenAddress].tokenSupply > 0) {
+      _amountIn += getSupplyDifference(_tokenAddress, l.depositAmount);
+    } else {
+      _amountIn = l.depositAmount;
+    }
+    require(_amountIn > 0, "Min deposit not met");
+
+    tokenInfo[_tokenAddress].tokenSupply += _amountIn;
 
     // Increment index
     index++;
 
     // Create new VestingInstance struct and add to index
-    vestingInstance[index] = VestingInstance(_tokenAddress, msg.sender, l.withdrawAddress, l.depositAmount, 0, l.startDate, l.endDate);
+    vestingInstance[index] = VestingInstance(_tokenAddress, msg.sender, l.withdrawAddress, _amountIn, 0, l.startDate, l.endDate);
 
     // Create map to withdraw address
     withdrawToLock[l.withdrawAddress].push(index);

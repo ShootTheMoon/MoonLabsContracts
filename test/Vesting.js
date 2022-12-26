@@ -38,7 +38,7 @@ describe("Deployment", async function () {
 
     // Deploy vesting contract
     const MoonLabsVesting = await ethers.getContractFactory("MoonLabsVesting");
-    const moonLabsVesting = await upgrades.deployProxy(MoonLabsVesting, [testToken.address, 30, 2, ethers.utils.parseEther(".1"), address1.address, moonLabsReferral.address, router.address], {
+    const moonLabsVesting = await upgrades.deployProxy(MoonLabsVesting, [testToken.address, 30, 25, ethers.utils.parseEther(".1"), address1.address, moonLabsReferral.address, router.address], {
       initializer: "initialize",
     });
     await moonLabsVesting.deployed();
@@ -83,10 +83,23 @@ describe("Deployment", async function () {
     it("Should create 10 vesting instances paying with tokens", async function () {
       const { owner, moonLabsVesting, testToken, address1 } = await loadFixture(deployTokenFixture);
 
-      await expect(moonLabsVesting.createLockPercent(testToken.address, [[owner.address, 200, 0, 10000]]))
+      await expect(
+        moonLabsVesting.createLockPercent(testToken.address, [
+          [owner.address, 200, 0, 10000],
+          [owner.address, 200, 0, 10000],
+          [owner.address, 200, 0, 10000],
+          [owner.address, 200, 0, 10000],
+          [owner.address, 200, 0, 10000],
+          [owner.address, 200, 0, 10000],
+          [owner.address, 200, 0, 10000],
+          [owner.address, 200, 0, 10000],
+          [owner.address, 200, 0, 10000],
+          [owner.address, 200, 0, 10000],
+        ])
+      )
         .to.emit(moonLabsVesting, "LockCreated")
-        .withArgs(owner.address, testToken.address, 1);
-      expect(await testToken.balanceOf(address1.address)).to.be.equal("0");
+        .withArgs(owner.address, testToken.address, 10);
+      expect(await testToken.balanceOf(address1.address)).to.be.equal("5");
     });
     it("Should create 10 vesting instances paying with Eth", async function () {
       const { owner, moonLabsVesting, testToken } = await loadFixture(deployTokenFixture);
