@@ -66,7 +66,6 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   /*|| === STRUCTS VARIABLES === ||*/
   struct VestingInstance {
     address tokenAddress; // Address of locked token
-    uint totalSupply; // Total supply of token when lock was created
     address creatorAddress; // Lock creator
     address withdrawAddress; // Withdraw address
     uint depositAmount; // Initial deposit amount based on supply of when lock was created
@@ -83,7 +82,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   }
 
   struct TokenInfo {
-    uint totalSupply;
+    uint tokenSupply;
     uint64[] tokenLocks;
   }
 
@@ -109,6 +108,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   function getClaimableTokens(uint64 _index) public view returns (uint) {
     uint _withdrawnAmmount = vestingInstance[_index].withdrawnAmount;
     uint _depositAmount = vestingInstance[_index].depositAmount;
+    address _tokenAddress = vestingInstance[_index].tokenAddress;
     uint64 _endDate = vestingInstance[_index].endDate;
     uint64 _startDate = vestingInstance[_index].startDate;
 
@@ -119,7 +119,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     // Check if lock is a normal lock
     if (_startDate == 0) {
-      return _endDate <= block.timestamp ? getSupplyDifference(_index, _depositAmount) : 0;
+      return _endDate <= block.timestamp ? getSupplyDifference(_tokenAddress, _depositAmount - _withdrawnAmmount) : 0;
     }
 
     // If none of the above then the token is a linear lock
@@ -147,26 +147,40 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   }
 
   /*|| === EXTERNAL FUNCTIONS === ||*/
-
   // Create vesting instance(s) paid for in token percentage
   function createLockPercent(address _tokenAddress, LockParams[] calldata l) external {
-    uint _totalSupply = IERC20Upgradeable(_tokenAddress).totalSupply();
     uint _totalDepositAmount;
     for (uint64 i; i < l.length; i++) {
       _totalDepositAmount += l[i].depositAmount;
-      createVestingInstance(_tokenAddress, _totalSupply, l[i]);
+      createVestingInstance(_tokenAddress, l[i]);
     }
 
-    uint _tokenFee = (_totalDepositAmount * percentLockPrice) / 1000;
+    uint _tokenSupply = tokenInfo[_tokenAddress].tokenSupply;
+    if (_tokenSupply != 0) {
+      tokenInfo[_tokenAddress].tokenSupply = MathUpgradeable.mulDiv(IERC20Upgradeable(_tokenAddress).balanceOf(address(this)), _tokenSupply, _totalDepositAmount);
+    }
 
+    // Calculate token fee
+    uint _tokenFee = MathUpgradeable.mulDiv(_totalDepositAmount, percentLockPrice, 1000);
+
+    require((_totalDepositAmount + _tokenFee) <= IERC20Upgradeable(_tokenAddress).balanceOf(msg.sender), "Insignificant token balance");
+
+    uint _previousBal = IERC20Upgradeable(_tokenAddress).balanceOf(address(this)); // Get balance before sending token
     transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount);
-    IERC20Upgradeable(_tokenAddress).safeTransferFrom(msg.sender, address(this), _totalDepositAmount);
+    uint _amountSent = IERC20Upgradeable(_tokenAddress).balanceOf(address(this)) - _previousBal; // Get amount of tokens received
+
+    // Check that correct amount of tokens were sent
+    require(_amountSent == _totalDepositAmount, "Transfer tax");
+
+    if (_tokenSupply == 0) {
+      _tokenSupply = IERC20Upgradeable(_tokenAddress).balanceOf(address(this));
+    } else {
+      _tokenSupply += getSupplyDifference(_tokenAddress, _amountSent);
+    }
+    tokenInfo[_tokenAddress].tokenSupply = _tokenSupply;
 
     // Transfer token fees to collector address
     transferTokensTo(_tokenAddress, feeCollector, _tokenFee);
-
-    // Keep record of total supply
-    tokenInfo[_tokenAddress].totalSupply = _totalSupply;
 
     // Emit lock created event
     emit LockCreated(msg.sender, _tokenAddress, l.length);
@@ -177,23 +191,33 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     // Check if msg value is correct
     require(msg.value == ethLockPrice * l.length, "Incorrect price");
 
-    uint _totalSupply = IERC20Upgradeable(_tokenAddress).totalSupply();
     uint _totalDepositAmount;
     for (uint64 i; i < l.length; i++) {
       _totalDepositAmount += l[i].depositAmount;
-      createVestingInstance(_tokenAddress, _totalSupply, l[i]);
+      createVestingInstance(_tokenAddress, l[i]);
     }
 
+    require(_totalDepositAmount <= IERC20Upgradeable(_tokenAddress).balanceOf(msg.sender), "Insignificant token balance");
+
+    uint _previousBal = IERC20Upgradeable(_tokenAddress).balanceOf(address(this)); // Get balance before sending token
     transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount);
-    IERC20Upgradeable(_tokenAddress).safeTransferFrom(msg.sender, address(this), _totalDepositAmount);
+    uint _amountSent = IERC20Upgradeable(_tokenAddress).balanceOf(address(this)) - _previousBal; // Get amount of tokens received
+
+    // Check that correct amount of tokens were sent
+    require(_amountSent == _totalDepositAmount, "Transfer tax");
+
+    uint _tokenSupply = tokenInfo[_tokenAddress].tokenSupply;
+    if (_tokenSupply == 0) {
+      _tokenSupply = IERC20Upgradeable(_tokenAddress).balanceOf(address(this));
+    } else {
+      _tokenSupply += getSupplyDifference(_tokenAddress, _amountSent);
+    }
+    tokenInfo[_tokenAddress].tokenSupply = _tokenSupply;
 
     // Add to burn amount burn meter
     burnMeter += (msg.value * burnPercent) / 100;
 
     handleBurns();
-
-    // Keep record of total supply
-    tokenInfo[_tokenAddress].totalSupply = _totalSupply;
 
     // Emit lock created event
     emit LockCreated(msg.sender, _tokenAddress, l.length);
@@ -209,87 +233,66 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     uint _commission = (((ethLockPrice * codeCommission) / 100) * l.length);
     // Check if msg value is correct
     require(msg.value == (ethLockPrice * l.length - _discount), "Incorrect price");
-    // Distribute commission
-    distributeCommission(_code, _commission);
-
-    uint _totalSupply = IERC20Upgradeable(_tokenAddress).totalSupply();
     uint _totalDepositAmount;
     for (uint64 i; i < l.length; i++) {
       _totalDepositAmount += l[i].depositAmount;
-      createVestingInstance(_tokenAddress, _totalSupply, l[i]);
+      createVestingInstance(_tokenAddress, l[i]);
     }
 
+    require(_totalDepositAmount <= IERC20Upgradeable(_tokenAddress).balanceOf(msg.sender), "Insignificant token balance");
+
+    uint _previousBal = IERC20Upgradeable(_tokenAddress).balanceOf(address(this)); // Get balance before sending token
     transferTokensFrom(_tokenAddress, msg.sender, _totalDepositAmount);
-    IERC20Upgradeable(_tokenAddress).safeTransferFrom(msg.sender, address(this), _totalDepositAmount);
+    uint _amountSent = IERC20Upgradeable(_tokenAddress).balanceOf(address(this)) - _previousBal; // Get amount of tokens received
+    // Check that correct amount of tokens were sent
+    require(_amountSent == _totalDepositAmount, "Transfer tax");
+
+    uint _tokenSupply = tokenInfo[_tokenAddress].tokenSupply;
+    if (_tokenSupply == 0) {
+      _tokenSupply = IERC20Upgradeable(_tokenAddress).balanceOf(address(this));
+    } else {
+      _tokenSupply += getSupplyDifference(_tokenAddress, _amountSent);
+    }
+    tokenInfo[_tokenAddress].tokenSupply = _tokenSupply;
 
     // Add to burn amount burn meter
     burnMeter += (msg.value * burnPercent) / 100;
 
     handleBurns();
 
-    // Keep record of total supply
-    tokenInfo[_tokenAddress].totalSupply = _totalSupply;
+    // Distribute commission
+    distributeCommission(_code, _commission);
 
     // Emit lock created event
     emit LockCreated(msg.sender, _tokenAddress, l.length);
   }
 
-  // This function checks if global supply for that token has changed and updates input token amount based off of the difference
-  function getSupplyDifference(uint64 _index, uint _tokenAmount) private view returns (uint) {
-    address _tokenAddress = vestingInstance[_index].tokenAddress;
-    uint _newSupply = IERC20Upgradeable(_tokenAddress).totalSupply();
-    uint _oldSupply = vestingInstance[_index].totalSupply;
-
-    if (_newSupply != _oldSupply) {
-      // Math to supply difference
-      /*
-
-          New Supply
-      ------------------   *   (Tokens Locked)
-           Old New
-    */
-      return (_newSupply / _oldSupply) * _tokenAmount;
-    }
-    return _tokenAmount;
+  function getSupplyDifference(address _tokenAddress, uint _amount) private view returns (uint) {
+    return MathUpgradeable.mulDiv(IERC20Upgradeable(_tokenAddress).balanceOf(address(this)), _amount, tokenInfo[_tokenAddress].tokenSupply);
   }
 
-  // This function gets the original token amount after its been converted by getSupplyDifference
-  function getInverseSupplyDifference(uint64 _index, uint _tokenAmount) private view returns (uint) {
-    address _tokenAddress = vestingInstance[_index].tokenAddress;
-    uint _newSupply = IERC20Upgradeable(_tokenAddress).totalSupply();
-    uint _oldSupply = vestingInstance[_index].totalSupply;
-
-    if (_newSupply != _oldSupply) {
-      // Math to supply difference
-      /*
-
-          Old Supply
-      ------------------   *   (Tokens Locked)
-          New Supply 
-    */
-      return (_oldSupply / _newSupply) * _tokenAmount;
-    }
-    return _tokenAmount;
+  function getInverseSupplyDifference(address _tokenAddress, uint _amount) private view returns (uint) {
+    return MathUpgradeable.mulDiv(tokenInfo[_tokenAddress].tokenSupply, _amount, IERC20Upgradeable(_tokenAddress).balanceOf(address(this)));
   }
 
   // Claim unlocked tokens
   function withdrawUnlockedTokens(uint64 _index, uint _amount) external withdrawOwner(_index) {
-    require(_amount <= getClaimableTokens(_index), "Exceeds withdraw balance");
     require(_amount > 0, "Cannot withdraw 0 tokens");
-    address _address = vestingInstance[_index].tokenAddress;
+    require(_amount <= getClaimableTokens(_index), "Exceeds withdraw balance");
 
-    // Subtract add amount to be withdrawn to withdrawnAmount
-    vestingInstance[_index].withdrawnAmount += getInverseSupplyDifference(_index, _amount);
+    address _tokenAddress = vestingInstance[_index].tokenAddress;
+
+    vestingInstance[_index].withdrawnAmount += getInverseSupplyDifference(_tokenAddress, _amount) + 1;
+    tokenInfo[_tokenAddress].tokenSupply -= getInverseSupplyDifference(_tokenAddress, _amount);
 
     // Transfer tokens from contract to recipient
     transferTokensTo(vestingInstance[_index].tokenAddress, msg.sender, _amount);
-
     // Delete vesting instance if no tokens are left
     if (vestingInstance[_index].withdrawnAmount == vestingInstance[_index].depositAmount) {
       deleteVestingInstance(_index);
     }
     // Emits TokensWithdrawn event
-    emit TokensWithdrawn(msg.sender, _address, _index);
+    emit TokensWithdrawn(msg.sender, _tokenAddress, _index);
   }
 
   // Claim ETH in contract
@@ -367,8 +370,8 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
   /*|| === PRIVATE FUNCTIONS === ||*/
   // Create vesting instance
-  function createVestingInstance(address _tokenAddress, uint _totalSupply, LockParams calldata l) private {
-    require(l.depositAmount > 0, "Deposit amount must be greater than 0");
+  function createVestingInstance(address _tokenAddress, LockParams calldata l) private {
+    require(l.depositAmount >= 100, "Min deposit not met");
     require(l.startDate < l.endDate, "Start date must come before end date");
     require(l.endDate < 10000000000, "Invalid end date");
 
@@ -376,7 +379,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     index++;
 
     // Create new VestingInstance struct and add to index
-    vestingInstance[index] = VestingInstance(_tokenAddress, _totalSupply, msg.sender, l.withdrawAddress, l.depositAmount, 0, l.startDate, l.endDate);
+    vestingInstance[index] = VestingInstance(_tokenAddress, msg.sender, l.withdrawAddress, l.depositAmount, 0, l.startDate, l.endDate);
 
     // Create map to withdraw address
     withdrawToLock[l.withdrawAddress].push(index);
@@ -410,10 +413,11 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
   // Get the current amount of unlocked tokens
   function calculateLinearWithdraw(uint64 _index) private view returns (uint unlockedTokens) {
-    uint64 _endDate = vestingInstance[_index].endDate;
-    uint64 _startDate = vestingInstance[_index].startDate;
     uint _withdrawnAmmount = vestingInstance[_index].withdrawnAmount;
     uint _depositAmount = vestingInstance[_index].depositAmount;
+    address _tokenAddress = vestingInstance[_index].tokenAddress;
+    uint64 _endDate = vestingInstance[_index].endDate;
+    uint64 _startDate = vestingInstance[_index].startDate;
     uint64 _timeBlock = _endDate - _startDate; // Time from start date to end date
     uint64 _timeElapsed;
 
@@ -431,7 +435,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
       -----------------------------   -   (Deposit Amount - Current Amount)
                Time Block
     */
-    return getSupplyDifference(_index, (MathUpgradeable.mulDiv(_depositAmount, _timeBlock, _timeElapsed) - (_withdrawnAmmount)));
+    return getSupplyDifference(_tokenAddress, (MathUpgradeable.mulDiv(_depositAmount, _timeBlock, _timeElapsed) - (_withdrawnAmmount)));
   }
 
   // Distribute commission
