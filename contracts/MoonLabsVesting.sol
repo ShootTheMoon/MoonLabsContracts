@@ -351,7 +351,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     withdrawToLock[lock.withdrawAddress].push(index);
 
     // Create map to token address
-    tokenToLock[tokenAddress].push(index);
+    // tokenToLock[tokenAddress].push(index);
   }
 
   // Transfer tokens to contract
@@ -400,7 +400,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
       -----------------------------   -   (Withdrawn Amount)
                Time Block
     **/
-    return MathUpgradeable.mulDiv(depositAmount, timeBlock, timeElapsed) - (withdrawnAmount);
+    return MathUpgradeable.mulDiv(depositAmount, timeElapsed, timeBlock) - (withdrawnAmount);
   }
 
   // Distribute commission
