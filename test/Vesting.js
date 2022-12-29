@@ -83,32 +83,224 @@ describe("Deployment", async function () {
     it("Should create 10 vesting instances paying with tokens", async function () {
       const { owner, moonLabsVesting, testToken, address1 } = await loadFixture(deployTokenFixture);
 
+      await expect(
+        moonLabsVesting.createLockPercent(testToken.address, [
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+          [owner.address, 20000000000000, 1672110244, 1672110245],
+        ])
+      )
+        .to.emit(moonLabsVesting, "LockCreated")
+        .withArgs(owner.address, testToken.address, 50);
       await expect(moonLabsVesting.createLockPercent(testToken.address, [[owner.address, 20000000000000, 1672110244, 1672110245]]))
         .to.emit(moonLabsVesting, "LockCreated")
         .withArgs(owner.address, testToken.address, 1);
-      await expect(moonLabsVesting.createLockPercent(testToken.address, [[owner.address, 20000000000000, 1672110244, 1672110245]]))
-        .to.emit(moonLabsVesting, "LockCreated")
-        .withArgs(owner.address, testToken.address, 1);
-      expect(await testToken.balanceOf(address1.address)).to.be.equal("100000000000");
+      // expect(await testToken.balanceOf(address1.address)).to.be.equal("100000000000");
     });
     it("Should create 10 vesting instances paying with Eth", async function () {
-      const { owner, moonLabsVesting, testToken } = await loadFixture(deployTokenFixture);
+      const { owner, address1, address2, moonLabsVesting, testToken } = await loadFixture(deployTokenFixture);
 
+      await expect(
+        moonLabsVesting.createLockEth(
+          testToken.address,
+          [
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+          ],
+          { value: ethers.utils.parseEther("5") }
+        )
+      )
+        .to.emit(moonLabsVesting, "LockCreated")
+        .withArgs(owner.address, testToken.address, 50);
       await expect(moonLabsVesting.createLockEth(testToken.address, [[owner.address, 20000000000000, 1672110244, 1672110245]], { value: ethers.utils.parseEther(".1") }))
         .to.emit(moonLabsVesting, "LockCreated")
         .withArgs(owner.address, testToken.address, 1);
-      await expect(moonLabsVesting.createLockEth(testToken.address, [[owner.address, 20000000000000, 1672110244, 1672110245]], { value: ethers.utils.parseEther(".1") }))
-        .to.emit(moonLabsVesting, "LockCreated")
-        .withArgs(owner.address, testToken.address, 1);
+      // await expect(moonLabsVesting.createLockEth(testToken.address, [[address1.address, 20000000000000, 1672110244, 1672110245]], { value: ethers.utils.parseEther(".1") }))
+      //   .to.emit(moonLabsVesting, "LockCreated")
+      //   .withArgs(owner.address, testToken.address, 1);
+      // await expect(moonLabsVesting.withdrawUnlockedTokens(1, 10000000000000)).to.emit(moonLabsVesting, "TokensWithdrawn").withArgs(owner.address, testToken.address, 1);
+      // await expect(moonLabsVesting.withdrawUnlockedTokens(1, 9999999999999)).to.emit(moonLabsVesting, "TokensWithdrawn").withArgs(owner.address, testToken.address, 1);
+
+      // expect(res).to.be.equal([
+      //   testToken.address,
+      //   owner.address,
+      //   ethers.BigNumber.from(20000000000000),
+      //   ethers.BigNumber.from(19999999999999),
+      //   ethers.BigNumber.from(1672110244),
+      //   ethers.BigNumber.from(1672110245),
+      //   `tokenAddress: ${testToken.address}`,
+      //   `withdrawAddress: ${owner.address}`,
+      //   `depositAmount: ${ethers.BigNumber.from(20000000000000)}`,
+      //   `withdrawnAmount: ${ethers.BigNumber.from(19999999999999)}`,
+      //   `startDate: ${ethers.BigNumber.from(1672110244)}`,
+      //   `endDate: ${ethers.BigNumber.from(1672110245)}`,
+      // ]);
+      // expect(await moonLabsVesting.getClaimableTokens(1)).to.be.equal(1);
+      // await expect(moonLabsVesting.withdrawUnlockedTokens(1, 1)).to.emit(moonLabsVesting, "TokensWithdrawn").withArgs(owner.address, testToken.address, 1);
+      // expect(await moonLabsVesting.getClaimableTokens(1)).to.be.equal(0);
+      // const res = await moonLabsVesting.getInstance(1);
     });
     it("Should create 10 vesting instances with referral code paying with Eth", async function () {
       const { owner, moonLabsVesting, testToken, moonLabsReferral } = await loadFixture(deployTokenFixture);
       await moonLabsReferral.addMoonLabsContract(moonLabsVesting.address);
       await moonLabsReferral.createCode("moon");
       expect(await moonLabsReferral.checkIfActive("moon")).to.equal(true);
-      await expect(moonLabsVesting.createLockWithCodeEth(testToken.address, [[owner.address, 200, 1672110244, 1672110245]], "moon", { value: ethers.utils.parseEther(".09") }))
+      await expect(
+        moonLabsVesting.createLockWithCodeEth(
+          testToken.address,
+          [
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+            [owner.address, 20000000000000, 1672110244, 1672110245],
+          ],
+          "moon",
+          { value: ethers.utils.parseEther("4.5") }
+        )
+      )
         .to.emit(moonLabsVesting, "LockCreated")
-        .withArgs(owner.address, testToken.address, 1);
+        .withArgs(owner.address, testToken.address, 50);
       await expect(moonLabsVesting.createLockWithCodeEth(testToken.address, [[owner.address, 200, 1672110244, 1672110245]], "moon", { value: ethers.utils.parseEther(".09") }))
         .to.emit(moonLabsVesting, "LockCreated")
         .withArgs(owner.address, testToken.address, 1);
