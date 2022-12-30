@@ -11,416 +11,234 @@
 // adapt, edit, modify, republish, reproduce, rebroadcast, duplicate, distribute, or publicly display any of the content, information, or material
 // on this smart contract for non-personal or commercial purposes, except for any other use as permitted by the applicable copyright law.
 //
-// This is for ERC20 tokens and should NOT be used for Uniswap LP tokens or ANY other token protocol.
-//
 // Website: https://www.moonlabs.site/
+
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "./IDEXRouter.sol";
-
 interface IMoonLabsReferral {
-  function checkIfActive(string calldata _code) external view returns (bool);
+  function checkIfActive(bytes32 _code) external view returns (bool);
 
-  function getAddressByCode(string memory _code) external view returns (address);
+  function getCodeByAddress(address _address) external view returns (bytes32);
 
-  function addRewardsEarned(string calldata _code, uint _value) external;
+  function getAddressByCode(bytes32 _code) external view returns (address);
+
+  function addRewardsEarned(bytes32 _code, uint _value) external;
 }
 
-contract MoonLabsVestingOld is ReentrancyGuardUpgradeable, OwnableUpgradeable {
-  using SafeERC20Upgradeable for IERC20Upgradeable;
-
-  function initialize(address _tokenToBurn, uint32 _burnPercent, uint32 _percentLockPrice, uint _ethLockPrice, address _feeCollector, address _referralAddress, address _routerAddress) public initializer {
-    __Ownable_init();
-    tokenToBurn = IERC20Upgradeable(_tokenToBurn);
-    burnPercent = _burnPercent;
-    percentLockPrice = 25;
-    ethLockPrice = _ethLockPrice;
-    feeCollector = _feeCollector;
-    referralContract = IMoonLabsReferral(_referralAddress);
-    routerContract = IDEXRouter(_routerAddress);
-    codeDiscount = 10;
-    codeCommission = 10;
-    burnThreshold = 250000000000000000;
-  }
-
+contract MoonLabsReferralOld is IMoonLabsReferral, Ownable {
   /*|| === STATE VARIABLES === ||*/
-  uint public ethLockPrice; // Price per eth paid lock
-  uint public codeDiscount; // Discount in percentage applied to customer
-  uint public codeCommission; // Percentage sent to code owner
-  uint public burnThreshold; // Threshold in wei
-  uint public burnMeter;
-  address public feeCollector; // Fee collection address
-  uint32 public index; // Lock identifier
-  uint32 public burnPercent;
-  uint32 public percentLockPrice; // Percent per eth paid lock, represented at 10x the percent
-  IERC20Upgradeable public tokenToBurn;
-  IDEXRouter public routerContract;
-  IMoonLabsReferral public referralContract;
-
-  /*|| === STRUCTS VARIABLES === ||*/
-  struct VestingInstance {
-    address tokenAddress; // Address of locked token
-    address withdrawAddress; // Withdraw address
-    uint depositAmount; // Initial deposit amount based on supply of when lock was created
-    uint withdrawnAmount; // Total withdrawn amount based on supply of when lock was created
-    uint64 startDate; // Linear lock if !=0. Date when tokens start to unlock
-    uint64 endDate; // Date when tokens are fully unlocked
-  }
-
-  struct LockParams {
-    address withdrawAddress; // Withdraw address
-    uint depositAmount; // Initial deposit amount
-    uint64 startDate; // Linear lock if !=0. Date when tokens start to unlock
-    uint64 endDate; // Date when tokens are fully unlocked
-  }
+  int public index;
+  bytes32[] private reservedCodes;
+  address[] public moonLabsContracts;
 
   /*|| === MAPPINGS === ||*/
-  mapping(address => uint32[]) private withdrawToLock;
-  mapping(uint32 => VestingInstance) private vestingInstance;
-
-  /*|| === EVENTS === ||*/
-  event LockCreated(address indexed creator, address indexed token, uint indexed numOfLocks);
-  event TokensWithdrawn(address indexed from, address indexed token, uint32 indexed index);
-  event LockTransfered(address indexed from, address indexed to, uint32 indexed index);
-
-  /*|| === EXTERNAL FUNCTIONS === ||*/
-  // Create vesting instance(s) paid for in token percentage
-  function createLockPercent(address tokenAddress, LockParams[] calldata lock) external {
-    uint totalDeposit;
-
-    for (uint32 i; i < lock.length; i++) {
-      totalDeposit += lock[i].depositAmount;
-    }
-
-    // Calculate token fee
-    uint tokenFee = MathUpgradeable.mulDiv(totalDeposit, percentLockPrice, 10000);
-    require((totalDeposit + tokenFee) <= IERC20Upgradeable(tokenAddress).balanceOf(msg.sender), "Token balance");
-    uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
-    transferTokensFrom(tokenAddress, msg.sender, totalDeposit);
-    uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
-
-    uint32 _index = index;
-    for (uint32 i = 0; i < lock.length; i++) {
-      _index++;
-      createVestingInstance(tokenAddress, lock[i], _index, amountSent, totalDeposit);
-    }
-
-    index = _index;
-
-    // Transfer token fees to collector address
-    transferTokensTo(tokenAddress, feeCollector, tokenFee);
-
-    // Emit lock created event
-    emit LockCreated(msg.sender, tokenAddress, lock.length);
-  }
-
-  // Create vesting instance(s) paid for in eth
-  function createLockEth(address tokenAddress, LockParams[] calldata lock) external payable {
-    uint _ethLockPrice = ethLockPrice;
-    uint totalDeposit;
-
-    // Check if msg value is correct
-    require(msg.value == _ethLockPrice * lock.length, "Incorrect price");
-
-    for (uint32 i; i < lock.length; i++) {
-      totalDeposit += lock[i].depositAmount;
-    }
-
-    require(totalDeposit <= IERC20Upgradeable(tokenAddress).balanceOf(msg.sender), "Token balance");
-    uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
-    transferTokensFrom(tokenAddress, msg.sender, totalDeposit);
-    uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
-
-    uint32 _index = index;
-    for (uint32 i; i < lock.length; i++) {
-      _index++;
-      createVestingInstance(tokenAddress, lock[i], _index, amountSent, totalDeposit);
-    }
-
-    index = _index;
-    // Add to burn amount burn meter
-    burnMeter += (msg.value * burnPercent) / 100;
-
-    handleBurns();
-
-    // Emit lock created event
-    emit LockCreated(msg.sender, tokenAddress, lock.length);
-  }
-
-  // Create vesting instance(s) with referral code
-  function createLockWithCodeEth(address tokenAddress, LockParams[] calldata lock, string calldata code) external payable {
-    uint _ethLockPrice = ethLockPrice;
-
-    // Check for referral valid code
-    require(referralContract.checkIfActive(code) == true, "Invalid code");
-    // Check if msg value is correct
-    require(msg.value == (_ethLockPrice * lock.length - (((_ethLockPrice * codeDiscount) / 100) * lock.length)), "Incorrect price");
-
-    uint totalDeposit;
-    for (uint32 i; i < lock.length; i++) {
-      totalDeposit += lock[i].depositAmount;
-    }
-
-    require(totalDeposit <= IERC20Upgradeable(tokenAddress).balanceOf(msg.sender), "Token balance");
-    uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
-    transferTokensFrom(tokenAddress, msg.sender, totalDeposit);
-    uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
-
-    uint32 _index = index;
-    for (uint32 i = 0; i < lock.length; i++) {
-      _index++;
-      createVestingInstance(tokenAddress, lock[i], _index, amountSent, totalDeposit);
-    }
-
-    index = _index;
-
-    // Add to burn amount burn meter
-    burnMeter += (msg.value * burnPercent) / 100;
-
-    handleBurns();
-
-    // Distribute commission
-    distributeCommission(code, (((_ethLockPrice * codeCommission) / 100) * lock.length));
-
-    // Emit lock created event
-    emit LockCreated(msg.sender, tokenAddress, lock.length);
-  }
-
-  // Claim unlocked tokens
-  function withdrawUnlockedTokens(uint32 _index, uint amount) external {
-    require(amount <= getClaimableTokens(_index), "Withdraw balance");
-    require(amount > 0, "Withdrawn min");
-    require(msg.sender == vestingInstance[_index].withdrawAddress, "Ownership");
-    address tokenAddress = vestingInstance[_index].tokenAddress;
-
-    vestingInstance[_index].withdrawnAmount += amount;
-    // Transfer tokens from contract to recipient
-    transferTokensTo(vestingInstance[_index].tokenAddress, msg.sender, amount);
-
-    // Delete vesting instance if no tokens are left
-    if (vestingInstance[_index].withdrawnAmount >= vestingInstance[_index].depositAmount) {
-      deleteVestingInstance(_index);
-    }
-    // Emits TokensWithdrawn event
-    emit TokensWithdrawn(msg.sender, tokenAddress, _index);
-  }
-
-  // Claim ETH in contract
-  function claimETH() external onlyOwner {
-    address payable to = payable(msg.sender);
-    to.transfer(address(this).balance);
-  }
-
-  // Set fee collector address
-  function setFeeCollector(address _feeCollector) external onlyOwner {
-    feeCollector = _feeCollector;
-  }
-
-  // Set router address
-  function setRouter(address _routerAddress) external onlyOwner {
-    routerContract = IDEXRouter(_routerAddress);
-  }
-
-  // Set referral contract
-  function setReferralContract(address _referralAddress) external onlyOwner {
-    referralContract = IMoonLabsReferral(_referralAddress);
-  }
-
-  // Set burnThreshold in wei
-  function setBurnThreshold(uint _burnThreshold) external onlyOwner {
-    burnThreshold = _burnThreshold;
-  }
-
-  // Set lock price in wei
-  function setLockPrice(uint _ethLockPrice) external onlyOwner {
-    ethLockPrice = _ethLockPrice;
-  }
-
-  // Set referral code discount
-  function setCodeDiscount(uint _codeDiscount) external onlyOwner {
-    codeDiscount = _codeDiscount;
-  }
-
-  // Set referral code commission
-  function setCodeCommission(uint _codeCommission) external onlyOwner {
-    codeCommission = _codeCommission;
-  }
-
-  // Change token to auto burn
-  function setTokenToBurn(address _tokenToBurn) external onlyOwner {
-    tokenToBurn = IERC20Upgradeable(_tokenToBurn);
-  }
-
-  // Change amount of tokens to auto burn
-  function setBurnPercent(uint32 _burnPercent) external onlyOwner {
-    require(_burnPercent <= 100, "Max percent");
-    burnPercent = _burnPercent;
-  }
-
-  // Change amount of tokens to auto burn
-  function setPercentLockPrice(uint32 _percentLockPrice) external onlyOwner {
-    require(_percentLockPrice <= 100, "Max percent");
-    percentLockPrice = _percentLockPrice;
-  }
-
-  // Return vesting index from withdraw address
-  function getIndexFromWithdrawAddress(address withdrawAddress) external view returns (uint32[] memory) {
-    return withdrawToLock[withdrawAddress];
-  }
-
-  // Return vest index from token address
-  function getIndexFromTokenAddress(address tokenAddress) external view returns (uint64[] memory) {
-    uint64[] memory locks = new uint64[](index);
-    uint64 counter;
-    for (uint32 i = 0; i < index; i++) {
-      if (vestingInstance[i].tokenAddress == tokenAddress) {
-        locks[counter] = index;
-        counter++;
-      }
-    }
-    return locks;
-  }
-
-  // Return vesting instance from index
-  function getInstance(uint32 _index) external view returns (address, address, uint, uint, uint64, uint64) {
-    return (vestingInstance[_index].tokenAddress, vestingInstance[_index].withdrawAddress, vestingInstance[_index].depositAmount, vestingInstance[_index].withdrawnAmount, vestingInstance[_index].startDate, vestingInstance[_index].endDate);
-  }
+  mapping(address => bytes32) private addressToCode;
+  mapping(bytes32 => address) private codeToAddress;
+  mapping(bytes32 => uint) private rewardsEarned;
 
   /*|| === PUBLIC FUNCTIONS === ||*/
-  // Transfer withdraw address
-  function transferVestingOwnership(uint32 _index, address newOwner) public nonReentrant {
-    require(msg.sender == vestingInstance[_index].withdrawAddress, "Ownership");
-    // Delete mapping from old owner to index of vesting instance and pop
-    uint32[] storage withdrawArray = withdrawToLock[msg.sender];
-    for (uint32 i = 0; i < withdrawArray.length; i++) {
-      if (withdrawArray[i] == _index) {
-        withdrawArray[i] = withdrawArray[withdrawArray.length - 1];
-        withdrawArray.pop();
+  // Check if code is in use
+  function checkIfActive(bytes32 _code) public view override returns (bool) {
+    // Convert input to uppercase
+    bytes32 _c = upper(_code);
+    // Check if code is in use
+    if (codeToAddress[_c] == address(0)) return false;
+    return true;
+  }
+
+  //  Check if code is reserved
+  function checkIfReserved(bytes32 _code) public view returns (bool) {
+    // Convert input to uppercase
+    bytes32 _c = upper(_code);
+    for (uint16 i = 0; i < reservedCodes.length; i++) {
+      // Comapre two strings
+      if (_c == reservedCodes[i]) return true;
+    }
+    return false;
+  }
+
+  // Remove code from reserved list and pop array
+  function removeReservedCode(bytes32 _code) public onlyOwner {
+    // Convert input to uppercase
+    bytes32 _c = upper(_code);
+    // Check if code is reserved
+    require(checkIfReserved(_c) == true, "Code not reserved");
+    for (uint16 i = 0; i < reservedCodes.length; i++) {
+      // Comapre two strings
+      if (_c == reservedCodes[i]) {
+        reservedCodes[i] = reservedCodes[reservedCodes.length - 1];
+        reservedCodes.pop();
         break;
       }
     }
-
-    // Change withdraw owner in vesting instance to new owner
-    vestingInstance[_index].withdrawAddress = newOwner;
-
-    // Map index of transferred lock to new owner
-    withdrawToLock[newOwner].push(_index);
-    emit LockTransfered(msg.sender, newOwner, _index);
   }
 
-  // Return claimable tokens
-  function getClaimableTokens(uint32 _index) public view returns (uint) {
-    uint withdrawnAmount = vestingInstance[_index].withdrawnAmount;
-    uint depositAmount = vestingInstance[_index].depositAmount;
-    uint64 endDate = vestingInstance[_index].endDate;
-    uint64 startDate = vestingInstance[_index].startDate;
+  /*|| === EXTERNAL FUNCTIONS === ||*/
+  // Create a referral code that is bound to caller address
+  function createCode(bytes32 _code) external {
+    // Convert input to uppercase
+    bytes32 _c = upper(_code);
+    // Check if code is in use
+    require(checkIfActive(_code) == false, "Code in use");
+    // Check if caller address has a code
+    require(addressToCode[msg.sender] == bytes32(""), "Address in use");
+    // Check if code is reserved
+    require(checkIfReserved(_c) == false, "Code reserved");
+    // Create new mappings
+    addressToCode[msg.sender] = _c;
+    codeToAddress[_c] = msg.sender;
+    index++;
+  }
 
-    // Check if the token balance is 0
-    if (withdrawnAmount >= depositAmount) {
-      return 0;
+  function deleteCode() external {
+    // Check if address has a code
+    bytes32 _c = upper(addressToCode[msg.sender]);
+    // Check if code is in use
+    require(_c != bytes32(""), "Address not in use");
+    delete codeToAddress[_c];
+    delete addressToCode[msg.sender];
+    delete rewardsEarned[_c];
+    index--;
+  }
+
+  // Change address of referral code
+  function setCodeAddress(bytes32 _code, address _address) external {
+    // Convert input to uppercase
+    bytes32 _c = upper(_code);
+    // Check if sender owns code
+    require(msg.sender == codeToAddress[_c], "You do not own this code");
+    // Check if recipient address has a code
+    require(addressToCode[_address] == bytes32(""), "Address in use");
+    // Reset amount earned
+    delete rewardsEarned[_c];
+    // Create new mappings
+    addressToCode[_address] = _c;
+    codeToAddress[_c] = _address;
+  }
+
+  function getCodeByAddress(address _address) external view override returns (bytes32) {
+    return addressToCode[_address];
+  }
+
+  function getAddressByCode(bytes32 _code) external view override returns (address) {
+    // Convert input to uppercase
+    bytes32 _c = upper(_code);
+    return codeToAddress[_c];
+  }
+
+  // Reserve referral code(s) and push to array
+  function addReservedCodes(bytes32[] calldata _code) external onlyOwner {
+    for (uint8 i = 0; i < _code.length; i++) {
+      // Convert input to uppercase
+      bytes32 _c = upper(_code[i]);
+      // Check if code is in use
+      require(codeToAddress[_c] == address(0), "Code in use");
+      // Check if code is reserved
+      require(checkIfReserved(_c) == false, "Code is reserved");
+      // Push code to reserved list
+      reservedCodes.push(_c);
     }
+  }
 
-    // Check if lock is a normal lock
-    if (startDate == 0) {
-      return endDate <= block.timestamp ? depositAmount - withdrawnAmount : 0;
+  // Assign a code from reserved list to given address
+  function assignReservedCode(bytes32 _code, address _address) external onlyOwner {
+    // Convert input to uppercase
+    bytes32 _c = upper(_code);
+    // Check if code is not reserved
+    require(checkIfReserved(_c) == true, "Code not reserved");
+    // Check if recipient address has a code
+    require(addressToCode[_address] == bytes32(""), "Address in use");
+    // Remove code from reserved list
+    removeReservedCode(_c);
+    // Create new mappings
+    addressToCode[_address] = _c;
+    codeToAddress[_c] = _address;
+    index++;
+  }
+
+  function deleteCodeOwner(bytes32 _code) external onlyOwner {
+    // Convert input to uppercase
+    bytes32 _c = upper(_code);
+    // Check if code is bound to an address
+    require(checkIfActive(_code) == true, "Code not in use");
+    // Delete mappings
+    delete addressToCode[codeToAddress[_c]];
+    delete codeToAddress[_c];
+    delete rewardsEarned[_c];
+    index--;
+  }
+
+  // Add address to approved mlab contracts
+  function addMoonLabsContract(address _address) external onlyOwner {
+    moonLabsContracts.push(_address);
+  }
+
+  // Remove address to approved mlab contracts
+  function removeMoonLabsContract(address _address) external onlyOwner {
+    for (uint32 i = 0; i < moonLabsContracts.length; i++) {
+      if (_address == moonLabsContracts[i]) {
+        moonLabsContracts[i] = moonLabsContracts[moonLabsContracts.length - 1];
+        moonLabsContracts.pop();
+      }
     }
+  }
 
-    // If none of the above then the token is a linear lock
-    return calculateLinearWithdraw(_index);
+  // Function is used inside other mlab contracts
+  function addRewardsEarned(bytes32 _code, uint _value) external override {
+    for (uint32 i = 0; i < moonLabsContracts.length; i++) {
+      if (msg.sender == moonLabsContracts[i]) {
+        bytes32 _c = upper(_code);
+        // Add rewards to mapping
+        rewardsEarned[_c] += _value;
+      } else {
+        revert();
+      }
+    }
+  }
+
+  // Get rewards a referal code has earned on that current address
+  function getRewardsEarned(bytes32 _code) external view returns (uint) {
+    // Convert input to uppercase
+    bytes32 _c = upper(_code);
+    return rewardsEarned[_c];
   }
 
   /*|| === PRIVATE FUNCTIONS === ||*/
-  // Create vesting instance
-  function createVestingInstance(address tokenAddress, LockParams calldata lock, uint32 _index, uint amountSent, uint totalDeposit) private {
-    uint depositAmount = lock.depositAmount;
-    address withdrawAddress = lock.withdrawAddress;
-    uint64 startDate = lock.startDate;
-    uint64 endDate = lock.endDate;
-    require(startDate < endDate, "Start date");
-    require(endDate < 10000000000, "End date");
-    require(lock.depositAmount > 0, "Min deposit");
-
-    // Create new VestingInstance struct and add to index
-    vestingInstance[_index] = VestingInstance(tokenAddress, withdrawAddress, MathUpgradeable.mulDiv(amountSent, depositAmount, totalDeposit), 0, startDate, endDate);
-
-    withdrawToLock[withdrawAddress].push(_index);
-  }
-
-  // Transfer tokens to contract
-  function transferTokensFrom(address tokenAddress, address from, uint amount) private {
-    IERC20Upgradeable(tokenAddress).safeTransferFrom(from, address(this), amount);
-  }
-
-  // Transfer tokens to address
-  function transferTokensTo(address tokenAddress, address to, uint amount) private {
-    // Transfer tokens to contract
-    IERC20Upgradeable(tokenAddress).safeTransfer(to, amount);
-  }
-
-  // Delete vesting instance
-  function deleteVestingInstance(uint32 _index) private {
-    uint32[] storage withdrawArray = withdrawToLock[msg.sender];
-    for (uint32 i = 0; i < withdrawArray.length; i++) {
-      if (withdrawArray[i] == _index) {
-        withdrawArray[i] = withdrawArray[withdrawArray.length - 1];
-        withdrawArray.pop();
-        break;
-      }
+  /**
+   * Upper
+   *
+   * Converts all the values of a string to their corresponding upper case
+   * value.
+   *
+   * @param _base When being used for a data type this is the extended object
+   *              otherwise this is the string base to convert to upper case
+   * @return string
+   */
+  function upper(bytes32 _base) public pure returns (bytes32) {
+    bytes memory _baseBytes = bytes(abi.encodePacked(_base));
+    for (uint i = 0; i < _baseBytes.length; i++) {
+      _baseBytes[i] = _upper(_baseBytes[i]);
     }
-    // Delete vesting instance map
-    delete vestingInstance[_index];
+    return bytes32(_baseBytes);
   }
 
-  // Get the current amount of unlocked tokens
-  function calculateLinearWithdraw(uint32 _index) private view returns (uint unlockedTokens) {
-    uint withdrawnAmount = vestingInstance[_index].withdrawnAmount;
-    uint depositAmount = vestingInstance[_index].depositAmount;
-    uint64 endDate = vestingInstance[_index].endDate;
-    uint64 startDate = vestingInstance[_index].startDate;
-    uint64 timeBlock = endDate - startDate; // Time from start date to end date
-    uint64 timeElapsed;
-
-    if (endDate <= block.timestamp) {
-      timeElapsed = timeBlock;
-    } else if (startDate < block.timestamp) {
-      timeElapsed = uint64(block.timestamp) - startDate;
+  /**
+   * Upper
+   *
+   * Convert an alphabetic character to upper case and return the original
+   * value when not alphabetic
+   *
+   * @param _b1 The byte to be converted to upper case
+   * @return bytes1 The converted value if the passed value was alphabetic
+   *                and in a lower case otherwise returns the original value
+   */
+  function _upper(bytes1 _b1) private pure returns (bytes1) {
+    if (_b1 >= 0x61 && _b1 <= 0x7A) {
+      return bytes1(uint8(_b1) - 32);
     }
 
-    /// Math to calculate linear unlock
-    /**
-    This formula will only return a negative number when the current amount is less than what can actually be withdrawn
-
-      Deposit Amount x Time Elapsed
-      -----------------------------   -   (Withdrawn Amount)
-               Time Block
-    **/
-    return MathUpgradeable.mulDiv(depositAmount, timeElapsed, timeBlock) - (withdrawnAmount);
-  }
-
-  // Distribute commission
-  function distributeCommission(string memory code, uint commission) private {
-    address payable to = payable(referralContract.getAddressByCode(code));
-    to.transfer(commission);
-    referralContract.addRewardsEarned(code, commission);
-  }
-
-  function handleBurns() private {
-    // Check if threshold is met
-    uint _burnMeter = burnMeter;
-    if (burnMeter >= burnThreshold) {
-      // Buy tokenToBurn via uniswap router and send to dead address
-      address[] memory path = new address[](2);
-      path[0] = routerContract.WETH();
-      path[1] = address(tokenToBurn);
-      routerContract.swapExactETHForTokensSupportingFeeOnTransferTokens{ value: _burnMeter }(0, path, 0x000000000000000000000000000000000000dEaD, block.timestamp);
-      _burnMeter = 0;
-      burnMeter = _burnMeter;
-    }
+    return _b1;
   }
 }

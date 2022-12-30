@@ -56,6 +56,8 @@ describe("Deployment", async function () {
     //Create test token pair virtual contract
     // const pair = new ethers.Contract(pairAddress, pairAbi, owner);
 
+    moonLabsReferral.addMoonLabsContract(moonLabsVesting.address);
+
     return { moonLabsVesting, testToken, owner, address1, address2, EPOCH, moonLabsReferral };
   }
   describe("Ownership", async function () {

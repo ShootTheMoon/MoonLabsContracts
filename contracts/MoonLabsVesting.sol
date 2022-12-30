@@ -34,11 +34,11 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "./IDEXRouter.sol";
 
 interface IMoonLabsReferral {
-  function checkIfActive(string calldata _code) external view returns (bool);
+  function checkIfActive(string calldata code) external view returns (bool);
 
-  function getAddressByCode(string memory _code) external view returns (address);
+  function getAddressByCode(string memory code) external view returns (address);
 
-  function addRewardsEarned(string calldata _code, uint _value) external;
+  function addRewardsEarned(string calldata code, uint commission) external;
 }
 
 contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
@@ -63,7 +63,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   uint public burnThreshold; /// ETH in WEI when tokenToBurn should be bought and sent to DEAD address
   uint public burnMeter; /// Current ETH in WEI for buying and burning tokenToBurn
   address public feeCollector; /// Fee collection address for paying with token percent
-  uint64 public index; /// Unique lock identifier
+  uint64 public nonce; /// Unique lock identifier
   uint32 public codeDiscount; /// Discount in the percentage applied to the customer when using referral code, represented in 10s
   uint32 public codeCommission; /// Percentage of each lock purchase sent to referral code owner, represented in 10s
   uint32 public burnPercent; /// Percent of each transaction sent to burnMeter, represented in 10s
@@ -92,12 +92,12 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   /*|| === MAPPINGS === ||*/
   mapping(address => uint64[]) private withdrawToLock; /// Withdraw address to array of locks
   mapping(address => uint64[]) private tokenToLock; /// Token address to array of locks
-  mapping(uint64 => VestingInstance) private vestingInstance; /// Index to vesting instance
+  mapping(uint64 => VestingInstance) private vestingInstance; /// Nonce to vesting instance
 
   /*|| === EVENTS === ||*/
   event LockCreated(address indexed creator, address indexed token, uint indexed numOfLocks);
-  event TokensWithdrawn(address indexed from, address indexed token, uint32 indexed index);
-  event LockTransfered(address indexed from, address indexed to, uint32 indexed index);
+  event TokensWithdrawn(address indexed from, address indexed token, uint32 indexed nonce);
+  event LockTransfered(address indexed from, address indexed to, uint32 indexed nonce);
 
   /*|| === EXTERNAL FUNCTIONS === ||*/
   /**  
@@ -126,14 +126,14 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     transferTokensFrom(tokenAddress, msg.sender, totalDeposit);
     uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
 
-    uint64 _index = index;
+    uint64 _nonce = nonce;
     /// Create a vesting instance for every struct in the lock array
     for (uint64 i = 0; i < lock.length; i++) {
-      _index++;
-      createVestingInstance(tokenAddress, lock[i], _index, amountSent, totalDeposit);
+      _nonce++;
+      createVestingInstance(tokenAddress, lock[i], _nonce, amountSent, totalDeposit);
     }
 
-    index = _index;
+    nonce = _nonce;
 
     /// Transfer token fees to the collector address
     transferTokensTo(tokenAddress, feeCollector, tokenFee);
@@ -168,14 +168,14 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     transferTokensFrom(tokenAddress, msg.sender, totalDeposit);
     uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
 
-    uint64 _index = index;
+    uint64 _nonce = nonce;
     /// Create a vesting instance for every struct in the lock array
     for (uint64 i; i < lock.length; i++) {
-      _index++;
-      createVestingInstance(tokenAddress, lock[i], _index, amountSent, totalDeposit);
+      _nonce++;
+      createVestingInstance(tokenAddress, lock[i], _nonce, amountSent, totalDeposit);
     }
 
-    index = _index;
+    nonce = _nonce;
 
     /// Add to burn amount in ETH burn meter
     burnMeter += (msg.value * burnPercent) / 100;
@@ -217,14 +217,14 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     transferTokensFrom(tokenAddress, msg.sender, totalDeposit);
     uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
 
-    uint64 _index = index;
+    uint64 _nonce = nonce;
     /// Create a vesting instance for every struct in the lock array
     for (uint64 i = 0; i < lock.length; i++) {
-      _index++;
-      createVestingInstance(tokenAddress, lock[i], _index, amountSent, totalDeposit);
+      _nonce++;
+      createVestingInstance(tokenAddress, lock[i], _nonce, amountSent, totalDeposit);
     }
 
-    index = _index;
+    nonce = _nonce;
 
     /// Add to burn amount burn meter
     burnMeter += (msg.value * burnPercent) / 100;
@@ -240,32 +240,32 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
   /**
    * @notice Claim specified number of unlocked tokens. Will delete the lock if all tokens are withdrawn.
-   * @param _index Vesting instance id of the targeted lock
+   * @param _nonce Vesting instance id of the targeted lock
    * @param amount Amount of tokens attempting to be withdrawn
    */
-  function withdrawUnlockedTokens(uint32 _index, uint amount) external {
+  function withdrawUnlockedTokens(uint32 _nonce, uint amount) external {
     /// Check if the amount attempting to be withdrawn is valid
-    require(amount <= getClaimableTokens(_index), "Withdraw balance");
+    require(amount <= getClaimableTokens(_nonce), "Withdraw balance");
     require(amount > 0, "Withdrawn min");
     /// Check that caller is the withdraw owner of the lock
-    require(msg.sender == vestingInstance[_index].withdrawAddress, "Ownership");
-    address tokenAddress = vestingInstance[_index].tokenAddress;
+    require(msg.sender == vestingInstance[_nonce].withdrawAddress, "Ownership");
+    address tokenAddress = vestingInstance[_nonce].tokenAddress;
 
     /// Increment amount withdrawn by the amount being withdrawn
-    vestingInstance[_index].withdrawnAmount += amount;
+    vestingInstance[_nonce].withdrawnAmount += amount;
     /// Transfer tokens from the contract to the recipient
-    transferTokensTo(vestingInstance[_index].tokenAddress, msg.sender, amount);
+    transferTokensTo(vestingInstance[_nonce].tokenAddress, msg.sender, amount);
 
     /// Delete vesting instance if no tokens are left
-    if (vestingInstance[_index].withdrawnAmount >= vestingInstance[_index].depositAmount) {
-      deleteVestingInstance(_index);
+    if (vestingInstance[_nonce].withdrawnAmount >= vestingInstance[_nonce].depositAmount) {
+      deleteVestingInstance(_nonce);
     }
     /// Emits TokensWithdrawn event
-    emit TokensWithdrawn(msg.sender, tokenAddress, _index);
+    emit TokensWithdrawn(msg.sender, tokenAddress, _nonce);
   }
 
   /**
-   * @notice Claim ETH in contract, owner only function.
+   * @notice Claim ETH in contract. Owner only function.
    * @dev Excludes eth in the burn meter.
    */
   function claimETH() external onlyOwner {
@@ -276,28 +276,28 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   }
 
   /**
-   * @notice Set the fee collection address, owner only function.
+   * @notice Set the fee collection address. Owner only function.
    */
   function setFeeCollector(address _feeCollector) external onlyOwner {
     feeCollector = _feeCollector;
   }
 
   /**
-   * @notice Set the Uniswap router address, owner only function.
+   * @notice Set the Uniswap router address. Owner only function.
    */
   function setRouter(address _routerAddress) external onlyOwner {
     routerContract = IDEXRouter(_routerAddress);
   }
 
   /**
-   * @notice Set the referral contract address, owner only function.
+   * @notice Set the referral contract address. Owner only function.
    */
   function setReferralContract(address _referralAddress) external onlyOwner {
     referralContract = IMoonLabsReferral(_referralAddress);
   }
 
   /**
-   * @notice Set the burn threshold in WEI, owner only function.
+   * @notice Set the burn threshold in WEI. Owner only function.
    * @param _burnThreshold Amount of ETH in WEI
    */
   function setBurnThreshold(uint _burnThreshold) external onlyOwner {
@@ -305,7 +305,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   }
 
   /**
-   * @notice Set the price for a single vesting instance in WEI, owner only function.
+   * @notice Set the price for a single vesting instance in WEI. Owner only function.
    * @param _ethLockPrice Amount of ETH in WEI
    */
   function setLockPrice(uint _ethLockPrice) external onlyOwner {
@@ -313,7 +313,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   }
 
   /**
-   * @notice Set the percentage of ETH per lock discounted on code use, owner only function.
+   * @notice Set the percentage of ETH per lock discounted on code use. Owner only function.
    * @param _codeDiscount Percentage represented in 10s
    */
   function setCodeDiscount(uint32 _codeDiscount) external onlyOwner {
@@ -321,7 +321,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   }
 
   /**
-   * @notice Set the percentage of ETH per lock distributed to code owner, owner only function.
+   * @notice Set the percentage of ETH per lock distributed to code owner. Owner only function.
    * @param _codeCommission Percentage represented in 10s
    */
   function setCodeCommission(uint32 _codeCommission) external onlyOwner {
@@ -329,7 +329,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   }
 
   /**
-   * @notice Set the Moon Labs native token address, owner only function.
+   * @notice Set the Moon Labs native token address. Owner only function.
    * @param _tokenToBurn Valid ERC20 address
    */
   function setTokenToBurn(address _tokenToBurn) external onlyOwner {
@@ -337,7 +337,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   }
 
   /**
-   * @notice Set percentage of ETH per lock sent to the burn meter, owner only function.
+   * @notice Set percentage of ETH per lock sent to the burn meter. Owner only function.
    * @param _burnPercent Percentage represented in 10s
    */
   function setBurnPercent(uint32 _burnPercent) external onlyOwner {
@@ -346,7 +346,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   }
 
   /**
-   * @notice Set the percent of deposited tokens taken for a lock that is paid for using tokens, owner only function.
+   * @notice Set the percent of deposited tokens taken for a lock that is paid for using tokens. Owner only function.
    * @param _percentLockPrice Percentage represented in 10000s
    */
   function setPercentLockPrice(uint32 _percentLockPrice) external onlyOwner {
@@ -359,7 +359,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    * @param withdrawAddress Wallet address of desired withdraw wallet
    * @return Array of vesting instance IDs
    */
-  function getIndexFromWithdrawAddress(address withdrawAddress) external view returns (uint64[] memory) {
+  function getNonceFromWithdrawAddress(address withdrawAddress) external view returns (uint64[] memory) {
     return withdrawToLock[withdrawAddress];
   }
 
@@ -368,32 +368,32 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    * @param tokenAddress token address of desired ERC20 token
    * @return Array of vesting instance IDs
    */
-  function getIndexFromTokenAddress(address tokenAddress) external view returns (uint64[] memory) {
+  function getNonceFromTokenAddress(address tokenAddress) external view returns (uint64[] memory) {
     return tokenToLock[tokenAddress];
   }
 
   /**
    * @notice Retrieve information of a single vesting instance
-   * @param _index ID of desired vesting instance
+   * @param _nonce ID of desired vesting instance
    * @return token address, withdraw address, deposit amount, withdrawn amount, start date, end date
    */
-  function getInstance(uint32 _index) external view returns (address, address, uint, uint, uint64, uint64) {
-    return (vestingInstance[_index].tokenAddress, vestingInstance[_index].withdrawAddress, vestingInstance[_index].depositAmount, vestingInstance[_index].withdrawnAmount, vestingInstance[_index].startDate, vestingInstance[_index].endDate);
+  function getInstance(uint32 _nonce) external view returns (address, address, uint, uint, uint64, uint64) {
+    return (vestingInstance[_nonce].tokenAddress, vestingInstance[_nonce].withdrawAddress, vestingInstance[_nonce].depositAmount, vestingInstance[_nonce].withdrawnAmount, vestingInstance[_nonce].startDate, vestingInstance[_nonce].endDate);
   }
 
   /*|| === PUBLIC FUNCTIONS === ||*/
   /**
    * @notice Transfer withdraw ownership of vesting instance, only callable by withdraw owner
-   * @param _index ID of desired vesting instance
+   * @param _nonce ID of desired vesting instance
    * @param newOwner Address of new withdraw address
    */
-  function transferVestingOwnership(uint32 _index, address newOwner) public nonReentrant {
+  function transferVestingOwnership(uint32 _nonce, address newOwner) public nonReentrant {
     /// Check that caller is the withdraw owner of the lock
-    require(msg.sender == vestingInstance[_index].withdrawAddress, "Ownership");
-    /// Delete mapping from the old owner to index of vesting instance and pop
+    require(msg.sender == vestingInstance[_nonce].withdrawAddress, "Ownership");
+    /// Delete mapping from the old owner to nonce of vesting instance and pop
     uint64[] storage withdrawArray = withdrawToLock[msg.sender];
     for (uint64 i = 0; i < withdrawArray.length; i++) {
-      if (withdrawArray[i] == _index) {
+      if (withdrawArray[i] == _nonce) {
         withdrawArray[i] = withdrawArray[withdrawArray.length - 1];
         withdrawArray.pop();
         break;
@@ -401,24 +401,24 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     }
 
     /// Change withdraw owner in vesting instance to the new owner
-    vestingInstance[_index].withdrawAddress = newOwner;
+    vestingInstance[_nonce].withdrawAddress = newOwner;
 
-    /// Map index of transferred lock to the new owner
-    withdrawToLock[newOwner].push(_index);
+    /// Map nonce of transferred lock to the new owner
+    withdrawToLock[newOwner].push(_nonce);
     /// Emit lock transferred event
-    emit LockTransfered(msg.sender, newOwner, _index);
+    emit LockTransfered(msg.sender, newOwner, _nonce);
   }
 
   /**
    * @notice Retrieve unlocked tokens for a vesting instance
-   * @param _index ID of desired vesting instance
+   * @param _nonce ID of desired vesting instance
    * @return Number of unlocked tokens
    */
-  function getClaimableTokens(uint32 _index) public view returns (uint) {
-    uint withdrawnAmount = vestingInstance[_index].withdrawnAmount;
-    uint depositAmount = vestingInstance[_index].depositAmount;
-    uint64 endDate = vestingInstance[_index].endDate;
-    uint64 startDate = vestingInstance[_index].startDate;
+  function getClaimableTokens(uint32 _nonce) public view returns (uint) {
+    uint withdrawnAmount = vestingInstance[_nonce].withdrawnAmount;
+    uint depositAmount = vestingInstance[_nonce].depositAmount;
+    uint64 endDate = vestingInstance[_nonce].endDate;
+    uint64 startDate = vestingInstance[_nonce].startDate;
 
     // Check if the token balance is 0
     if (withdrawnAmount >= depositAmount) {
@@ -431,12 +431,12 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     }
 
     // If none of the above then the token is a linear lock
-    return calculateLinearWithdraw(_index);
+    return calculateLinearWithdraw(_nonce);
   }
 
   /*|| === PRIVATE FUNCTIONS === ||*/
   /**
-   * @notice Create a single vesting instance, maps index to vesting instance, token address to index, withdraw address to index. Checks for valid start date, end date, and deposit amount.
+   * @notice Create a single vesting instance, maps nonce to vesting instance, token address to nonce, withdraw address to nonce. Checks for valid start date, end date, and deposit amount.
    * @param tokenAddress ID of desired vesting instance
    * @param lock array of LockParams struct(s) containing:
    *    withdrawAddress The address of the receiving wallet
@@ -444,7 +444,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    *    startDate Date when tokens start to unlock, is Linear lock if !=0.
    *    endDate Date when all tokens are fully unlocked
    */
-  function createVestingInstance(address tokenAddress, LockParams calldata lock, uint64 _index, uint amountSent, uint totalDeposit) private {
+  function createVestingInstance(address tokenAddress, LockParams calldata lock, uint64 _nonce, uint amountSent, uint totalDeposit) private {
     uint depositAmount = lock.depositAmount;
     address withdrawAddress = lock.withdrawAddress;
     uint64 startDate = lock.startDate;
@@ -453,12 +453,12 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     require(endDate < 10000000000, "End date");
     require(lock.depositAmount > 0, "Min deposit");
 
-    /// Create a new Vesting Instance and map to index
-    vestingInstance[_index] = VestingInstance(tokenAddress, withdrawAddress, MathUpgradeable.mulDiv(amountSent, depositAmount, totalDeposit), 0, startDate, endDate);
-    /// Map token address to index
-    tokenToLock[tokenAddress].push(_index);
-    /// Map withdraw address to index
-    withdrawToLock[withdrawAddress].push(_index);
+    /// Create a new Vesting Instance and map to nonce
+    vestingInstance[_nonce] = VestingInstance(tokenAddress, withdrawAddress, MathUpgradeable.mulDiv(amountSent, depositAmount, totalDeposit), 0, startDate, endDate);
+    /// Map token address to nonce
+    tokenToLock[tokenAddress].push(_nonce);
+    /// Map withdraw address to nonce
+    withdrawToLock[withdrawAddress].push(_nonce);
   }
 
   /**
@@ -483,30 +483,30 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
   /**
    * @notice Delete a vesting instance and the mappings belonging to it.
-   * @param _index ID of desired vesting instance
+   * @param _nonce ID of desired vesting instance
    */
-  function deleteVestingInstance(uint32 _index) private {
-    /// Delete mapping from the withdraw owner to index of vesting instance and pop
+  function deleteVestingInstance(uint32 _nonce) private {
+    /// Delete mapping from the withdraw owner to nonce of vesting instance and pop
     uint64[] storage withdrawArray = withdrawToLock[msg.sender];
     for (uint64 i = 0; i < withdrawArray.length; i++) {
-      if (withdrawArray[i] == _index) {
+      if (withdrawArray[i] == _nonce) {
         withdrawArray[i] = withdrawArray[withdrawArray.length - 1];
         withdrawArray.pop();
         break;
       }
     }
 
-    /// Delete mapping from the token address to index of vesting instance and pop
-    uint64[] storage tokenAddress = tokenToLock[vestingInstance[_index].tokenAddress];
+    /// Delete mapping from the token address to nonce of vesting instance and pop
+    uint64[] storage tokenAddress = tokenToLock[vestingInstance[_nonce].tokenAddress];
     for (uint64 i = 0; i < tokenAddress.length; i++) {
-      if (tokenAddress[i] == _index) {
+      if (tokenAddress[i] == _nonce) {
         tokenAddress[i] = tokenAddress[tokenAddress.length - 1];
         tokenAddress.pop();
         break;
       }
     }
     /// Delete vesting instance map
-    delete vestingInstance[_index];
+    delete vestingInstance[_nonce];
   }
 
   /**
@@ -541,14 +541,14 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
   /**
    * @notice Calculate the number of unlocked tokens within a linear lock.
-   * @param _index ID of desired vesting instance
+   * @param _nonce ID of desired vesting instance
    * @return unlockedTokens number of unlocked tokens
    */
-  function calculateLinearWithdraw(uint64 _index) private view returns (uint unlockedTokens) {
-    uint withdrawnAmount = vestingInstance[_index].withdrawnAmount;
-    uint depositAmount = vestingInstance[_index].depositAmount;
-    uint64 endDate = vestingInstance[_index].endDate;
-    uint64 startDate = vestingInstance[_index].startDate;
+  function calculateLinearWithdraw(uint64 _nonce) private view returns (uint) {
+    uint withdrawnAmount = vestingInstance[_nonce].withdrawnAmount;
+    uint depositAmount = vestingInstance[_nonce].depositAmount;
+    uint64 endDate = vestingInstance[_nonce].endDate;
+    uint64 startDate = vestingInstance[_nonce].startDate;
     uint64 timeBlock = endDate - startDate; /// Time from start date to end date
     uint64 timeElapsed; // Time since tokens started to unlock
 

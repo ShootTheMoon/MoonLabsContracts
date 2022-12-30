@@ -1,8 +1,8 @@
 {
   "manifestVersion": "3.2",
   "admin": {
-    "address": "0xaB837301d12cDc4b97f1E910FC56C9179894d9cf",
-    "txHash": "0x6662b5d8a2992a14fad8d5db17cef2c230d8074a539c1933329fae1e6af18cdd"
+    "address": "0x0F527785e39B22911946feDf580d87a4E00465f0",
+    "txHash": "0x612924ecc0c9fbce9e32b018e08afce9afaf5a7440d9c7b31dce21ec4af6bbed"
   },
   "proxies": [
     {
@@ -447,7 +447,12 @@
     },
     {
       "address": "0x4ff1f64683785E0460c24A4EF78D582C2488704f",
-      "txHash": "0xccfb9b280a56e6a7d3222ccb78d5c41818211ff835b72eaea2251d75871e1d51",
+      "txHash": "0x57e77d7d905833142a990b637736e776504272eb6f9e33e0499b0698ceb3c196",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x1D3EDBa836caB11C26A186873abf0fFeB8bbaE63",
+      "txHash": "0x86661c4c391c86f08595a76eb585cbff7261d17c3b856b9ebb696423721ce399",
       "kind": "transparent"
     }
   ],
@@ -3658,9 +3663,9 @@
         }
       }
     },
-    "2355c282db381b000c83d915fab0ab4165e81fa31b68fe8dcd0106272f70b90f": {
-      "address": "0xe044814c9eD1e6442Af956a817c161192cBaE98F",
-      "txHash": "0x6fd99a1fe18b118a9c88a6c40be82c2a12603882578b7fd8fd1939c0112733c8",
+    "097418a36fef1bab8e05d19a84c8874e6dbc4ccdfdc95b4856095d4fa12f82df": {
+      "address": "0x4ff1f64683785E0460c24A4EF78D582C2488704f",
+      "txHash": "0xdccb7880848a2a8a94677ad68b50ba42747cf1db5eb59a3a9ce4dbe2eab6f456",
       "layout": {
         "solcVersion": "0.8.17",
         "storage": [
@@ -3754,7 +3759,7 @@
             "src": "contracts\\MoonLabsVesting.sol:72"
           },
           {
-            "label": "index",
+            "label": "nonce",
             "offset": 20,
             "slot": "154",
             "type": "t_uint64",
@@ -3805,7 +3810,7 @@
             "label": "routerContract",
             "offset": 0,
             "slot": "156",
-            "type": "t_contract(IDEXRouter)2058",
+            "type": "t_contract(IDEXRouter)2193",
             "contract": "MoonLabsVesting",
             "src": "contracts\\MoonLabsVesting.sol:92"
           },
@@ -3813,7 +3818,7 @@
             "label": "referralContract",
             "offset": 0,
             "slot": "157",
-            "type": "t_contract(IMoonLabsReferral)2088",
+            "type": "t_contract(IMoonLabsReferral)3014",
             "contract": "MoonLabsVesting",
             "src": "contracts\\MoonLabsVesting.sol:93"
           },
@@ -3837,7 +3842,7 @@
             "label": "vestingInstance",
             "offset": 0,
             "slot": "160",
-            "type": "t_mapping(t_uint64,t_struct(VestingInstance)2221_storage)",
+            "type": "t_mapping(t_uint64,t_struct(VestingInstance)3147_storage)",
             "contract": "MoonLabsVesting",
             "src": "contracts\\MoonLabsVesting.sol:107"
           }
@@ -3863,7 +3868,7 @@
             "label": "bool",
             "numberOfBytes": "1"
           },
-          "t_contract(IDEXRouter)2058": {
+          "t_contract(IDEXRouter)2193": {
             "label": "contract IDEXRouter",
             "numberOfBytes": "20"
           },
@@ -3871,7 +3876,7 @@
             "label": "contract IERC20Upgradeable",
             "numberOfBytes": "20"
           },
-          "t_contract(IMoonLabsReferral)2088": {
+          "t_contract(IMoonLabsReferral)3014": {
             "label": "contract IMoonLabsReferral",
             "numberOfBytes": "20"
           },
@@ -3879,11 +3884,11 @@
             "label": "mapping(address => uint64[])",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_uint64,t_struct(VestingInstance)2221_storage)": {
+          "t_mapping(t_uint64,t_struct(VestingInstance)3147_storage)": {
             "label": "mapping(uint64 => struct MoonLabsVesting.VestingInstance)",
             "numberOfBytes": "32"
           },
-          "t_struct(VestingInstance)2221_storage": {
+          "t_struct(VestingInstance)3147_storage": {
             "label": "struct MoonLabsVesting.VestingInstance",
             "members": [
               {
