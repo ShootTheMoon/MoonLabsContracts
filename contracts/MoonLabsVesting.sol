@@ -47,7 +47,7 @@ interface IMoonLabsWhitelist {
 }
 
 contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
-  function initialize(address _tokenToBurn, uint32 _burnPercent, uint32 _percentLockPrice, uint _ethLockPrice, address _feeCollector, address referralAddress, address whitelistAddress, address routerAddress) public initializer {
+  function initialize(address _tokenToBurn, uint32 _burnPercent, uint32 _percentLockPrice, uint _ethLockPrice, address _feeCollector, address referralAddress, address whitelistAddress, address routerAddress, uint32 _codeDiscount, uint32 _codeCommission, uint _burnThreshold) public initializer {
     __Ownable_init();
     tokenToBurn = IERC20Upgradeable(_tokenToBurn);
     burnPercent = _burnPercent;
@@ -57,9 +57,9 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     referralContract = IMoonLabsReferral(referralAddress);
     whitelistContract = IMoonLabsWhitelist(whitelistAddress);
     routerContract = IDEXRouter(routerAddress);
-    codeDiscount = 10;
-    codeCommission = 10;
-    burnThreshold = 250000000000000000;
+    codeDiscount = _codeDiscount;
+    codeCommission = _codeCommission;
+    burnThreshold = _burnThreshold;
   }
 
   /*|| === STATE VARIABLES === ||*/
@@ -88,10 +88,10 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   }
 
   struct LockParams {
-    address withdrawAddress;
     uint depositAmount;
     uint64 startDate;
     uint64 endDate;
+    address withdrawAddress;
   }
 
   /*|| === MAPPINGS === ||*/
@@ -101,7 +101,6 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
   /*|| === EVENTS === ||*/
   event LockCreated(address indexed creator, address indexed token, uint indexed numOfLocks);
-  event TokensWithdrawn(address indexed from, address indexed token, uint32 indexed nonce);
   event LockTransfered(address indexed from, address indexed to, uint32 indexed nonce);
 
   /*|| === EXTERNAL FUNCTIONS === ||*/
@@ -153,8 +152,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    *    depositAmount Number of tokens in the vesting instance
    *    startDate Date when tokens start to unlock, is Linear lock if !=0.
    *    endDate Date when all tokens are fully unlocked
-   * @dev Since fees are not paid for in ETH, no ETH is added to the burn meter. Although not recommended due to potential customer confusion,
-   * function supports tokens with a transfer tax.
+   * @dev Since fees are not paid for in ETH, no ETH is added to the burn meter. This function supports tokens with a transfer tax, although not recommended due to potential customer confusion
    */
   function createLockPercent(address tokenAddress, LockParams[] calldata lock) external {
     /// Calculate total deposit
@@ -197,7 +195,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    *    depositAmount Number of tokens in the vesting instance
    *    startDate Date when tokens start to unlock, is Linear lock if !=0.
    *    endDate Date when all tokens are fully unlocked
-   * @dev Although not recommended due to potential customer confusion, this function supports tokens with a transfer tax.
+   * @dev This function supports tokens with a transfer tax, although not recommended due to potential customer confusion
    */
   function createLockEth(address tokenAddress, LockParams[] calldata lock) external payable {
     /// Check for correct message value
@@ -242,7 +240,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    *    startDate Date when tokens start to unlock, is Linear lock if !=0.
    *    endDate Date when all tokens are fully unlocked
    * @param code Referral code used for discount
-   * @dev Although not recommended due to potential customer confusion, this function supports tokens with a transfer tax.
+   * @dev This function supports tokens with a transfer tax, although not recommended due to potential customer confusion
    */
   function createLockWithCodeEth(address tokenAddress, LockParams[] calldata lock, string calldata code) external payable {
     uint _ethLockPrice = ethLockPrice;
@@ -295,19 +293,14 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     require(amount > 0, "Withdrawn min");
     /// Check that caller is the withdraw owner of the lock
     require(msg.sender == vestingInstance[_nonce].withdrawAddress, "Ownership");
-    address tokenAddress = vestingInstance[_nonce].tokenAddress;
 
     /// Increment amount withdrawn by the amount being withdrawn
     vestingInstance[_nonce].withdrawnAmount += amount;
     /// Transfer tokens from the contract to the recipient
     transferTokensTo(vestingInstance[_nonce].tokenAddress, msg.sender, amount);
 
-    /// Delete vesting instance if no tokens are left
-    if (vestingInstance[_nonce].withdrawnAmount >= vestingInstance[_nonce].depositAmount) {
-      deleteVestingInstance(_nonce);
-    }
-    /// Emits TokensWithdrawn event
-    emit TokensWithdrawn(msg.sender, tokenAddress, _nonce);
+    /// Delete vesting instance if withdrawn amount reaches deposit amount
+    if (vestingInstance[_nonce].withdrawnAmount >= vestingInstance[_nonce].depositAmount) deleteVestingInstance(_nonce);
   }
 
   /**
