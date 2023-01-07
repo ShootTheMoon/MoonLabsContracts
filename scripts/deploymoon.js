@@ -25,13 +25,13 @@ async function main() {
 
   const MoonLabsVesting = await ethers.getContractFactory("MoonLabsVesting");
 
-  const moonLabsVesting = await upgrades.deployProxy(MoonLabsVesting, ["0xaD5D813ab94a32bfF64175C73a1bF49D590bB511", 30, "100000000000000000", "0x3bd920C9cc9a40B9C9135e30ece4D3b49710551A", "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"], {
+  const moonLabsVesting = await upgrades.deployProxy(MoonLabsVesting, ["0xaD5D813ab94a32bfF64175C73a1bF49D590bB511", 30, 25, "100000000000000000", "0x3bd920C9cc9a40B9C9135e30ece4D3b49710551A", "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"], {
     initializer: "initialize",
   });
 
   await moonLabsVesting.deployed();
   console.log("Vesting contract deployed to:", moonLabsVesting.address);
-  console.log("Referral contract deployed to:", moonLabsReferral.address);
+  // console.log("Referral contract deployed to:", moonLabsReferral.address);
 }
 
 main();

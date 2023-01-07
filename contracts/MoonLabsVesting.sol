@@ -20,8 +20,9 @@
 /**
  * @title A token vesting contract for NON-Rebasing ERC20 tokens
  * @author Moon Labs LLC
- * @notice This contract's intended purpose is for token owners to create token locks for future or current holders that are immutable by the lock creator. There are no premature unlock conditions or lock
- * extensions. To maximize gas efficiency, this contract is not suited to handle rebasing tokens or tokens in which a wallet supply changes based on total supply.
+ * @notice This contract's intended purpose is for token owners to create token locks for future or current holders that are immutable by the lock
+ * creator. There are no premature unlock conditions or lock extensions. To maximize gas efficiency, this contract is not suited to handle rebasing
+ * tokens or tokens in which a wallets supply changes based on total supply.
  */
 
 pragma solidity ^0.8.17;
@@ -41,18 +42,21 @@ interface IMoonLabsReferral {
   function addRewardsEarned(string calldata code, uint commission) external;
 }
 
-contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
-  using SafeERC20Upgradeable for IERC20Upgradeable;
+interface IMoonLabsWhitelist {
+  function getIsWhitelisted(address _address) external view returns (bool);
+}
 
-  function initialize(address _tokenToBurn, uint32 _burnPercent, uint32 _percentLockPrice, uint _ethLockPrice, address _feeCollector, address _referralAddress, address _routerAddress) public initializer {
+contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
+  function initialize(address _tokenToBurn, uint32 _burnPercent, uint32 _percentLockPrice, uint _ethLockPrice, address _feeCollector, address referralAddress, address whitelistAddress, address routerAddress) public initializer {
     __Ownable_init();
     tokenToBurn = IERC20Upgradeable(_tokenToBurn);
     burnPercent = _burnPercent;
     percentLockPrice = _percentLockPrice;
     ethLockPrice = _ethLockPrice;
     feeCollector = _feeCollector;
-    referralContract = IMoonLabsReferral(_referralAddress);
-    routerContract = IDEXRouter(_routerAddress);
+    referralContract = IMoonLabsReferral(referralAddress);
+    whitelistContract = IMoonLabsWhitelist(whitelistAddress);
+    routerContract = IDEXRouter(routerAddress);
     codeDiscount = 10;
     codeCommission = 10;
     burnThreshold = 250000000000000000;
@@ -71,6 +75,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   IERC20Upgradeable public tokenToBurn; /// Native Moon Labs token
   IDEXRouter public routerContract; /// Uniswap router
   IMoonLabsReferral public referralContract; /// Moon Labs referral contract
+  IMoonLabsWhitelist public whitelistContract; /// Moon Labs whitelist contract
 
   /*|| === STRUCTS VARIABLES === ||*/
   struct VestingInstance {
@@ -101,16 +106,58 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
   /*|| === EXTERNAL FUNCTIONS === ||*/
   /**  
-    @notice Create one or multiple vesting instances for a single token. Fees are in the form of % of the token deposited.
+    @notice Create one or multiple vesting instances for a single token for whitelisted tokens.
    * @param tokenAddress Contract address of the erc20 token
    * @param lock array of LockParams struct(s) containing:
    *    withdrawAddress The address of the receiving wallet
    *    depositAmount Number of tokens in the vesting instance
    *    startDate Date when tokens start to unlock, is Linear lock if !=0.
    *    endDate Date when all tokens are fully unlocked
-    @dev Since fees are not paid for in ETH, no ETH is added to the burn meter. Although not recommended due to potential customer confusion, this function supports tokens with a transfer tax.
+    @dev Since this lock is free, no ETH is added to the burn meter. Although not recommended due to potential customer confusion, this function supports tokens with a transfer tax.
   */
+  function createLockWhitelist(address tokenAddress, LockParams[] calldata lock) external {
+    /// Check if token is whitelisted
+    require(whitelistContract.getIsWhitelisted(tokenAddress), "Token is not whitelisted");
+    /// Calculate total deposit
+    uint totalDeposit;
+    for (uint32 i; i < lock.length; i++) {
+      totalDeposit += lock[i].depositAmount;
+    }
+
+    /// Check for adequate supply in sender wallet
+    require((totalDeposit) <= IERC20Upgradeable(tokenAddress).balanceOf(msg.sender), "Token balance");
+
+    uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
+    /// Transfer tokens from sender to contract
+    transferTokensFrom(tokenAddress, msg.sender, totalDeposit);
+    uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
+
+    uint64 _nonce = nonce;
+    /// Create a vesting instance for every struct in the lock array
+    for (uint64 i = 0; i < lock.length; i++) {
+      _nonce++;
+      createVestingInstance(tokenAddress, lock[i], _nonce, amountSent, totalDeposit);
+    }
+
+    nonce = _nonce;
+
+    /// Emit lock created event
+    emit LockCreated(msg.sender, tokenAddress, lock.length);
+  }
+
+  /**
+   * @notice Create one or multiple vesting instances for a single token. Fees are in the form of % of the token deposited.
+   * @param tokenAddress Contract address of the erc20 token
+   * @param lock array of LockParams struct(s) containing:
+   *    withdrawAddress The address of the receiving wallet
+   *    depositAmount Number of tokens in the vesting instance
+   *    startDate Date when tokens start to unlock, is Linear lock if !=0.
+   *    endDate Date when all tokens are fully unlocked
+   * @dev Since fees are not paid for in ETH, no ETH is added to the burn meter. Although not recommended due to potential customer confusion,
+   * function supports tokens with a transfer tax.
+   */
   function createLockPercent(address tokenAddress, LockParams[] calldata lock) external {
+    /// Calculate total deposit
     uint totalDeposit;
     for (uint32 i; i < lock.length; i++) {
       totalDeposit += lock[i].depositAmount;
@@ -123,7 +170,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
     /// Transfer tokens from sender to contract
-    transferTokensFrom(tokenAddress, msg.sender, totalDeposit);
+    transferTokensFrom(tokenAddress, msg.sender, totalDeposit + tokenFee);
     uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
 
     uint64 _nonce = nonce;
@@ -142,7 +189,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     emit LockCreated(msg.sender, tokenAddress, lock.length);
   }
 
-  /**  
+  /**
    * @notice Create one or multiple vesting instances for a single token. Fees are in ETH.
    * @param tokenAddress Contract address of the erc20 token
    * @param lock array of LockParams struct(s) containing:
@@ -150,12 +197,12 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    *    depositAmount Number of tokens in the vesting instance
    *    startDate Date when tokens start to unlock, is Linear lock if !=0.
    *    endDate Date when all tokens are fully unlocked
-    @dev Although not recommended due to potential customer confusion, this function supports tokens with a transfer tax.
-  */
+   * @dev Although not recommended due to potential customer confusion, this function supports tokens with a transfer tax.
+   */
   function createLockEth(address tokenAddress, LockParams[] calldata lock) external payable {
     /// Check for correct message value
     require(msg.value == ethLockPrice * lock.length, "Incorrect price");
-
+    /// Calculate total deposit
     uint totalDeposit;
     for (uint32 i; i < lock.length; i++) {
       totalDeposit += lock[i].depositAmount;
@@ -186,7 +233,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     emit LockCreated(msg.sender, tokenAddress, lock.length);
   }
 
-  /**  
+  /**
    * @notice Create one or multiple vesting instances for a single token using a referral code. Fees are in ETH.
    * @param tokenAddress Contract address of the erc20 token
    * @param lock array of LockParams struct(s) containing:
@@ -195,16 +242,15 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    *    startDate Date when tokens start to unlock, is Linear lock if !=0.
    *    endDate Date when all tokens are fully unlocked
    * @param code Referral code used for discount
-    @dev Although not recommended due to potential customer confusion, this function supports tokens with a transfer tax.
-  */
+   * @dev Although not recommended due to potential customer confusion, this function supports tokens with a transfer tax.
+   */
   function createLockWithCodeEth(address tokenAddress, LockParams[] calldata lock, string calldata code) external payable {
     uint _ethLockPrice = ethLockPrice;
-
     /// Check for referral valid code
-    require(referralContract.checkIfActive(code) == true, "Invalid code");
+    require(referralContract.checkIfActive(code), "Invalid code");
     /// Check for correct message value
     require(msg.value == (_ethLockPrice * lock.length - (((_ethLockPrice * codeDiscount) / 100) * lock.length)), "Incorrect price");
-
+    /// Calculate total deposit
     uint totalDeposit;
     for (uint32 i; i < lock.length; i++) {
       totalDeposit += lock[i].depositAmount;
@@ -284,6 +330,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
   /**
    * @notice Set the Uniswap router address. Owner only function.
+   * @param _routerAddress Address of uniswap router
    */
   function setRouter(address _routerAddress) external onlyOwner {
     routerContract = IDEXRouter(_routerAddress);
@@ -291,6 +338,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
   /**
    * @notice Set the referral contract address. Owner only function.
+   * @param _referralAddress Address of Moon Labs referral address
    */
   function setReferralContract(address _referralAddress) external onlyOwner {
     referralContract = IMoonLabsReferral(_referralAddress);
@@ -421,14 +469,10 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     uint64 startDate = vestingInstance[_nonce].startDate;
 
     // Check if the token balance is 0
-    if (withdrawnAmount >= depositAmount) {
-      return 0;
-    }
+    if (withdrawnAmount >= depositAmount) return 0;
 
     // Check if the lock is a normal lock
-    if (startDate == 0) {
-      return endDate <= block.timestamp ? depositAmount - withdrawnAmount : 0;
-    }
+    if (startDate == 0) return endDate <= block.timestamp ? depositAmount - withdrawnAmount : 0;
 
     // If none of the above then the token is a linear lock
     return calculateLinearWithdraw(_nonce);
@@ -436,7 +480,8 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
   /*|| === PRIVATE FUNCTIONS === ||*/
   /**
-   * @notice Create a single vesting instance, maps nonce to vesting instance, token address to nonce, withdraw address to nonce. Checks for valid start date, end date, and deposit amount.
+   * @notice Create a single vesting instance, maps nonce to vesting instance, token address to nonce, withdraw address to nonce. Checks for valid
+   * start date, end date, and deposit amount.
    * @param tokenAddress ID of desired vesting instance
    * @param lock array of LockParams struct(s) containing:
    *    withdrawAddress The address of the receiving wallet
@@ -468,7 +513,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    * @param amount number of tokens being transferred
    */
   function transferTokensFrom(address tokenAddress, address from, uint amount) private {
-    IERC20Upgradeable(tokenAddress).safeTransferFrom(from, address(this), amount);
+    IERC20Upgradeable(tokenAddress).transferFrom(from, address(this), amount);
   }
 
   /**
@@ -478,7 +523,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    * @param amount number of tokens being transferred
    */
   function transferTokensTo(address tokenAddress, address to, uint amount) private {
-    IERC20Upgradeable(tokenAddress).safeTransfer(to, amount);
+    IERC20Upgradeable(tokenAddress).transfer(to, amount);
   }
 
   /**
@@ -553,8 +598,10 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     uint64 timeElapsed; // Time since tokens started to unlock
 
     if (endDate <= block.timestamp) {
+      /// Set time elapsed to time block
       timeElapsed = timeBlock;
     } else if (startDate < block.timestamp) {
+      /// Set time elapsed to the time elapse
       timeElapsed = uint64(block.timestamp) - startDate;
     }
 

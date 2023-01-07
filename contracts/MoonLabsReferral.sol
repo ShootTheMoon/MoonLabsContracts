@@ -21,8 +21,8 @@
  * @title This is a contract used for creating and managing referral codes.
  * @author Moon Labs LLC
  * @notice This contract's intended purpose is to allow users to create referral codes for customers to use while purchasing Moon Labs products. There
- * may only be one referral code per address and one address per referral code. Code owners may check their commission earned via this contract. Reserved
- * codes are bound to no address and may not be used until bound to an address.
+ * may only be one referral code per address and one address per referral code. Code owners may check their commission earned via this contract.
+ * Reserved codes are bound to no address and may not be used until bound to an address.
  */
 
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -37,6 +37,8 @@ interface IMoonLabsReferral {
   function getAddressByCode(string memory code) external view returns (address);
 
   function addRewardsEarned(string calldata code, uint commission) external;
+
+  function addRewardsEarnedUSD(string calldata code, uint commission) external;
 }
 
 contract MoonLabsReferral is IMoonLabsReferral, Ownable {
@@ -49,6 +51,7 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
   mapping(address => string) private addressToCode;
   mapping(string => address) private codeToAddress;
   mapping(string => uint) private rewardsEarned; /// Rewards earned by code in WEI
+  mapping(string => uint) private rewardsEarnedUSD; /// Rewards earned by code in USD
 
   /*|| === EXTERNAL FUNCTIONS === ||*/
   /**
@@ -58,16 +61,16 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
    */
   function createCode(string calldata code) external {
     /// Convert input to uppercase
-    string memory _c = upper(code);
+    string memory _code = upper(code);
     /// Check if the code is in use
     require(checkIfActive(code) == false, "Code in use");
     /// Check if the caller address has a code
     require(keccak256(abi.encodePacked(addressToCode[msg.sender])) == keccak256(abi.encodePacked("")), "Address in use");
     /// Check if the code is reserved
-    require(checkIfReserved(_c) == false, "Code reserved");
+    require(checkIfReserved(_code) == false, "Code reserved");
     /// Create new mappings
-    addressToCode[msg.sender] = _c;
-    codeToAddress[_c] = msg.sender;
+    addressToCode[msg.sender] = _code;
+    codeToAddress[_code] = msg.sender;
     index++;
   }
 
@@ -76,33 +79,36 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
    */
   function deleteCode() external {
     /// Check if the address has a code
-    string memory _c = upper(addressToCode[msg.sender]);
+    string memory _code = upper(addressToCode[msg.sender]);
     /// Check if the code is in use
-    require(keccak256(abi.encodePacked(_c)) != keccak256(abi.encodePacked("")), "Address not in use");
+    require(keccak256(abi.encodePacked(_code)) != keccak256(abi.encodePacked("")), "Address not in use");
     /// Delete mappings
-    delete codeToAddress[_c];
+    delete codeToAddress[_code];
     delete addressToCode[msg.sender];
-    delete rewardsEarned[_c];
+    delete rewardsEarned[_code];
+    delete rewardsEarnedUSD[_code];
     index--;
   }
 
   /**
-   * @notice Binds a code to new a address and resets commission earned on that code. Only the code owner can transfer their code. The new owner's address must not be in use.
+   * @notice Binds a code to new a address and resets commission earned on that code. Only the code owner can transfer their code. The new owner's *
+   * address must not be in use.
    * @param code to be bound to address
    * @param newOwner address of to which the code will be bound to
    */
   function setCodeAddress(string calldata code, address newOwner) external {
     /// Convert input to uppercase
-    string memory _c = upper(code);
+    string memory _code = upper(code);
     /// Check if the sender owns the code
-    require(msg.sender == codeToAddress[_c], "You do not own this code");
+    require(msg.sender == codeToAddress[_code], "You do not own this code");
     /// Check if the recipient address has a code
     require(keccak256(abi.encodePacked(addressToCode[newOwner])) == keccak256(abi.encodePacked("")), "Address in use");
     /// Reset the amount earned
-    delete rewardsEarned[_c];
+    delete rewardsEarned[_code];
+    delete rewardsEarnedUSD[_code];
     /// Create new mappings
-    addressToCode[newOwner] = _c;
-    codeToAddress[_c] = newOwner;
+    addressToCode[newOwner] = _code;
+    codeToAddress[_code] = newOwner;
   }
 
   /**
@@ -112,13 +118,13 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
   function addReservedCodes(string[] calldata code) external onlyOwner {
     for (uint8 i = 0; i < code.length; i++) {
       /// Convert input to uppercase
-      string memory _c = upper(code[i]);
+      string memory _code = upper(code[i]);
       /// Check if the code is in use
-      require(codeToAddress[_c] == address(0), "Code in use");
+      require(codeToAddress[_code] == address(0), "Code in use");
       /// Check if the code is reserved
-      require(checkIfReserved(_c) == false, "Code is reserved");
+      require(checkIfReserved(_code) == false, "Code is reserved");
       /// Push code to the reserved list
-      reservedCodes.push(_c);
+      reservedCodes.push(_code);
     }
   }
 
@@ -129,16 +135,16 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
    */
   function assignReservedCode(string calldata code, address newOwner) external onlyOwner {
     /// Convert input to uppercase
-    string memory _c = upper(code);
+    string memory _code = upper(code);
     /// Check if the code is not reserved
-    require(checkIfReserved(_c) == true, "Code not reserved");
+    require(checkIfReserved(_code) == true, "Code not reserved");
     /// Check if the recipient address has a code
     require(keccak256(abi.encodePacked(addressToCode[newOwner])) == keccak256(abi.encodePacked("")), "Address in use");
     /// Remove code from the reserved list
-    removeReservedCode(_c);
+    removeReservedCode(_code);
     /// Create new mappings
-    addressToCode[newOwner] = _c;
-    codeToAddress[_c] = newOwner;
+    addressToCode[newOwner] = _code;
+    codeToAddress[_code] = newOwner;
     index++;
   }
 
@@ -148,13 +154,14 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
    */
   function deleteCodeOwner(string calldata code) external onlyOwner {
     /// Convert input to uppercase
-    string memory _c = upper(code);
+    string memory _code = upper(code);
     /// Check if the code is bound to an address
     require(checkIfActive(code) == true, "Code not in use");
     /// Delete mappings
-    delete addressToCode[codeToAddress[_c]];
-    delete codeToAddress[_c];
-    delete rewardsEarned[_c];
+    delete addressToCode[codeToAddress[_code]];
+    delete codeToAddress[_code];
+    delete rewardsEarned[_code];
+    delete rewardsEarnedUSD[_code];
     index--;
   }
 
@@ -187,9 +194,24 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
   function addRewardsEarned(string calldata code, uint commission) external override {
     for (uint32 i = 0; i < moonLabsContracts.length; i++) {
       if (msg.sender == moonLabsContracts[i]) {
-        string memory _c = upper(code);
+        string memory _code = upper(code);
         /// Add rewards to mapping
-        rewardsEarned[_c] += commission;
+        rewardsEarned[_code] += commission;
+      }
+    }
+  }
+
+  /**
+   * @notice Log rewards to code mapping for USD. Only callable by Moon Labs contracts.
+   * @param code referral code
+   * @param commission amount of USD to send to referral code owner
+   */
+  function addRewardsEarnedUSD(string calldata code, uint commission) external override {
+    for (uint32 i = 0; i < moonLabsContracts.length; i++) {
+      if (msg.sender == moonLabsContracts[i]) {
+        string memory _code = upper(code);
+        /// Add rewards to mapping
+        rewardsEarnedUSD[_code] += commission;
       }
     }
   }
@@ -197,12 +219,23 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
   /**
    * @notice Get rewards a referral code has earned on that current address.
    * @param code referral code
+   * @return uint number of rewards in ETH and USD earned
+   */
+  function getRewardsEarned(string calldata code) external view returns (uint, uint) {
+    /// Convert input to uppercase
+    string memory _code = upper(code);
+    return (rewardsEarned[_code], rewardsEarnedUSD[_code]);
+  }
+
+  /**
+   * @notice Get rewards a referral code has earned on that current address.
+   * @param code referral code
    * @return uint number or rewards in ETH earned
    */
-  function getRewardsEarned(string calldata code) external view returns (uint) {
+  function getRewardsEarnedUSD(string calldata code) external view returns (uint) {
     /// Convert input to uppercase
-    string memory _c = upper(code);
-    return rewardsEarned[_c];
+    string memory _code = upper(code);
+    return rewardsEarnedUSD[_code];
   }
 
   /**
@@ -221,8 +254,8 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
    */
   function getAddressByCode(string memory code) external view override returns (address) {
     /// Convert input to uppercase
-    string memory _c = upper(code);
-    return codeToAddress[_c];
+    string memory _code = upper(code);
+    return codeToAddress[_code];
   }
 
   /*|| === PUBLIC FUNCTIONS === ||*/
@@ -232,12 +265,12 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
    */
   function removeReservedCode(string memory code) public onlyOwner {
     /// Convert input to uppercase
-    string memory _c = upper(code);
+    string memory _code = upper(code);
     /// Check if the code is reserved
-    require(checkIfReserved(_c) == true, "Code not reserved");
+    require(checkIfReserved(_code) == true, "Code not reserved");
     for (uint16 i = 0; i < reservedCodes.length; i++) {
       /// Comapre two strings
-      if (keccak256(abi.encodePacked(_c)) == keccak256(abi.encodePacked(reservedCodes[i]))) {
+      if (keccak256(abi.encodePacked(_code)) == keccak256(abi.encodePacked(reservedCodes[i]))) {
         reservedCodes[i] = reservedCodes[reservedCodes.length - 1];
         reservedCodes.pop();
       }
@@ -251,9 +284,9 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
    */
   function checkIfActive(string calldata code) public view override returns (bool) {
     // Convert input to uppercase
-    string memory _c = upper(code);
+    string memory _code = upper(code);
     // Check if the code is in use
-    if (codeToAddress[_c] == address(0)) return false;
+    if (codeToAddress[_code] == address(0)) return false;
     return true;
   }
 
@@ -264,10 +297,10 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
    */
   function checkIfReserved(string memory code) public view returns (bool) {
     // Convert input to uppercase
-    string memory _c = upper(code);
+    string memory _code = upper(code);
     for (uint16 i = 0; i < reservedCodes.length; i++) {
       // Comapre two strings
-      if (keccak256(abi.encodePacked(_c)) == keccak256(abi.encodePacked(reservedCodes[i]))) return true;
+      if (keccak256(abi.encodePacked(_code)) == keccak256(abi.encodePacked(reservedCodes[i]))) return true;
     }
     return false;
   }
