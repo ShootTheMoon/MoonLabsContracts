@@ -48,12 +48,26 @@ interface IMoonLabsWhitelist {
 }
 
 contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
-  function initialize(address _tokenToBurn, uint32 _burnPercent, uint32 _percentLockPrice, uint _ethLockPrice, address _feeCollector, address referralAddress, address whitelistAddress, address routerAddress, uint32 _codeDiscount, uint32 _codeCommission, uint _burnThreshold) public initializer {
+  function initialize(
+    address _tokenToBurn,
+    uint32 _burnPercent,
+    uint32 _percentLockPrice,
+    uint _ethLockPrice,
+    uint _ethSplitPrice,
+    address _feeCollector,
+    address referralAddress,
+    address whitelistAddress,
+    address routerAddress,
+    uint32 _codeDiscount,
+    uint32 _codeCommission,
+    uint _burnThreshold
+  ) public initializer {
     __Ownable_init();
     tokenToBurn = IERC20Upgradeable(_tokenToBurn);
     burnPercent = _burnPercent;
     percentLockPrice = _percentLockPrice;
     ethLockPrice = _ethLockPrice;
+    ethSplitPrice = _ethSplitPrice;
     feeCollector = _feeCollector;
     referralContract = IMoonLabsReferral(referralAddress);
     whitelistContract = IMoonLabsWhitelist(whitelistAddress);
@@ -65,6 +79,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
   /*|| === STATE VARIABLES === ||*/
   uint public ethLockPrice; /// Price in WEI for each lock instance when paying for lock with ETH
+  uint public ethSplitPrice; /// Price in WEI for each lock instance when splitting lock with ETH
   uint public burnThreshold; /// ETH in WEI when tokenToBurn should be bought and sent to DEAD address
   uint public burnMeter; /// Current ETH in WEI for buying and burning tokenToBurn
   address public feeCollector; /// Fee collection address for paying with token percent
@@ -73,6 +88,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   uint32 public codeCommission; /// Percentage of each lock purchase sent to referral code owner, represented in 10s
   uint32 public burnPercent; /// Percent of each transaction sent to burnMeter, represented in 10s
   uint32 public percentLockPrice; /// Percent of deposited tokens taken for a lock that is paid for using tokens, represented in 10000s
+  uint32 public percentSplitPrice; /// Percent of deposited tokens taken for a split that is paid for using tokens. represented in 10000s
   IERC20Upgradeable public tokenToBurn; /// Native Moon Labs token
   IDEXRouter public routerContract; /// Uniswap router
   IMoonLabsReferral public referralContract; /// Moon Labs referral contract
@@ -294,7 +310,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     require(amount <= getClaimableTokens(_nonce), "Withdraw balance");
     require(amount > 0, "Withdrawn min");
     /// Check that sender is the lock owner
-    require(lockInstance[_nonce].ownerAddress == msg.sender, "Onwership");
+    require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
 
     /// Decrement amount current by the amount being withdrawn
     lockInstance[_nonce].currentAmount -= amount;
@@ -315,7 +331,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    */
   function transferLockOwnership(uint64 _nonce, address newOwner) external {
     /// Check that sender is the lock owner
-    require(lockInstance[_nonce].ownerAddress == msg.sender, "Onwership");
+    require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
 
     /// Delete mapping from the old owner to nonce of lock instance and pop
     uint64[] storage withdrawArray = ownerToLock[msg.sender];
@@ -337,32 +353,125 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     emit LockTransfered(msg.sender, newOwner, _nonce);
   }
 
-  function splitLockETH(address newOwner, uint64 _nonce, uint amount) external {
+  /**
+   * @notice This function splits a current lock into two separate locks amount determined by the sender. Whitelisted tokens only. This function supports both linear and standard locks.
+   * @param recipient address of split receiver
+   * @param _nonce ID of desired lock instance
+   * @param amount number of tokens sent to new lock
+   */
+  function splitLockWhitelist(address recipient, uint64 _nonce, uint amount) external {
     uint currentAmount = lockInstance[_nonce].currentAmount;
     uint depositAmount = lockInstance[_nonce].depositAmount;
     address tokenAddress = lockInstance[_nonce].tokenAddress;
+
+    /// Check if the token is whitelisted
+    require(whitelistContract.getIsWhitelisted(tokenAddress), "Token is not whitelisted");
     /// Check that sender is the lock owner
-    require(lockInstance[_nonce].ownerAddress == msg.sender, "Onwership");
-    /// Check that amount is less than current amount in lock
+    require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
+    /// Check that amount is less than the current amount in the lock
     require(currentAmount > amount, "Transfer balance");
-    // Cjecl that amount is not 0
+    /// Check that amount is not 0
     require(amount > 0, "Zero transfer");
 
-    lockInstance[_nonce].depositAmount -= currentAmount - amount;
+    /// To maintain linear lock integrity, the deposit amount must maintain proportional to the current deposit amount
 
-    lockInstance[_nonce].currentAmount -= currentAmount - amount;
+    /// Convert amount to corresponding deposit amount and subtract from lock inital deposit
+    lockInstance[_nonce].depositAmount -= MathUpgradeable.mulDiv(depositAmount, amount, currentAmount);
+    /// Subtract amount from the current amount
+    lockInstance[_nonce].currentAmount -= amount;
 
     nonce++;
+
     /// Create a new lock instance and map to nonce
-    lockInstance[nonce] = LockInstance(tokenAddress, newOwner, amount, amount, lockInstance[_nonce].startDate, lockInstance[_nonce].endDate);
+    lockInstance[nonce] = LockInstance(tokenAddress, recipient, amount, MathUpgradeable.mulDiv(depositAmount, amount, currentAmount), lockInstance[_nonce].startDate, lockInstance[_nonce].endDate);
     /// Map token address to nonce
     tokenToLock[tokenAddress].push(nonce);
     /// Map owner address to nonce
-    ownerToLock[newOwner].push(nonce);
+    ownerToLock[recipient].push(nonce);
   }
 
   /**
-   * @notice Claim ETH in contract. Owner only function.
+   * @notice This function splits a current lock into two separate locks amount determined by the sender. Fees are in % of tokens split. This function supports both linear and standard locks.
+   * @param recipient address of split receiver
+   * @param _nonce ID of desired lock instance
+   * @param amount number of tokens sent to new lock
+   */
+  function splitLockETH(address recipient, uint64 _nonce, uint amount) external payable {
+    uint currentAmount = lockInstance[_nonce].currentAmount;
+    uint depositAmount = lockInstance[_nonce].depositAmount;
+    address tokenAddress = lockInstance[_nonce].tokenAddress;
+
+    /// Check if msg value is correct
+    require(msg.value == ethSplitPrice, "Incorrect Price");
+    /// Check that sender is the lock owner
+    require(lockInstance[_nonce].ownerAddress == msg.sender, "Onwership");
+    /// Check that amount is less than the current amount in the lock
+    require(currentAmount > amount, "Transfer balance");
+    /// Check that amount is not 0
+    require(amount > 0, "Zero transfer");
+
+    /// To maintain linear lock integrity, the deposit amount must maintain proportional to the current deposit amount
+
+    /// Convert amount to corresponding deposit amount and subtract from lock inital deposit
+    lockInstance[_nonce].depositAmount -= MathUpgradeable.mulDiv(depositAmount, amount, currentAmount);
+    /// Subtract amount from the current amount
+    lockInstance[_nonce].currentAmount -= amount;
+
+    nonce++;
+
+    /// Create a new lock instance and map to nonce
+    lockInstance[nonce] = LockInstance(tokenAddress, recipient, amount, MathUpgradeable.mulDiv(depositAmount, amount, currentAmount), lockInstance[_nonce].startDate, lockInstance[_nonce].endDate);
+    /// Map token address to nonce
+    tokenToLock[tokenAddress].push(nonce);
+    /// Map owner address to nonce
+    ownerToLock[recipient].push(nonce);
+  }
+
+  /**
+   * @notice This function splits a current lock into two separate locks amount determined by the sender. Fees are in eth. This function supports both linear and standard locks.
+   * @param recipient address of split receiver
+   * @param _nonce ID of desired lock instance
+   * @param amount number of tokens sent to new lock
+   * @dev tokens are deducted from the amount split
+   */
+  function splitLockPercent(address recipient, uint64 _nonce, uint amount) external {
+    uint currentAmount = lockInstance[_nonce].currentAmount;
+    uint depositAmount = lockInstance[_nonce].depositAmount;
+    address tokenAddress = lockInstance[_nonce].tokenAddress;
+
+    /// Check that sender is the lock owner
+    require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
+    /// Check that amount is less than the current amount in the lock
+    require(currentAmount > amount, "Transfer balance");
+    /// Check that amount is not 0
+    require(amount > 0, "Zero transfer");
+
+    /// Calculate the token fee based on total tokens split
+    uint tokenFee = MathUpgradeable.mulDiv(currentAmount, percentLockPrice, 10000);
+    /// Deduct the token fee from the amount split
+    amount -= tokenFee;
+    /// Transfer token fees to the collector address
+    transferTokensTo(tokenAddress, feeCollector, tokenFee);
+
+    /// To maintain linear lock integrity, the deposit amount must maintain proportional to the current deposit amount
+
+    /// Convert amount to corresponding deposit amount and subtract from lock inital deposit
+    lockInstance[_nonce].depositAmount -= MathUpgradeable.mulDiv(depositAmount, amount, currentAmount);
+    /// Subtract amount from the current amount
+    lockInstance[_nonce].currentAmount -= amount;
+
+    nonce++;
+
+    /// Create a new lock instance and map to nonce
+    lockInstance[nonce] = LockInstance(tokenAddress, recipient, amount, MathUpgradeable.mulDiv(depositAmount, amount, currentAmount), lockInstance[_nonce].startDate, lockInstance[_nonce].endDate);
+    /// Map token address to nonce
+    tokenToLock[tokenAddress].push(nonce);
+    /// Map owner address to nonce
+    ownerToLock[recipient].push(nonce);
+  }
+
+  /**
+   * @notice Claim ETH in the contract. Owner only function.
    * @dev Excludes eth in the burn meter.
    */
   function claimETH() external onlyOwner {
@@ -420,7 +529,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   }
 
   /**
-   * @notice Set the percentage of ETH per lock distributed to code owner. Owner only function.
+   * @notice Set the percentage of ETH per lock distributed to the code owner. Owner only function.
    * @param _codeCommission Percentage represented in 10s
    */
   function setCodeCommission(uint32 _codeCommission) external onlyOwner {
@@ -494,7 +603,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     /// Check if the token balance is 0
     if (currentAmount <= 0) return 0;
 
-    /// Check if the lock is a normal lock
+    /// Check if the lock is a standard lock
     if (startDate == 0) return endDate <= block.timestamp ? currentAmount : 0;
 
     /// If none of the above then the token is a linear lock
@@ -531,7 +640,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   /**
    * @dev Transfer tokens from address to this contract. Used for abstraction and readability.
    * @param tokenAddress token address of ERC20 to be transferred
-   * @param from the address of wallet transferring the token
+   * @param from the address of the wallet transferring the token
    * @param amount number of tokens being transferred
    */
   function transferTokensFrom(address tokenAddress, address from, uint amount) private {
@@ -595,7 +704,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
       }
     }
 
-    /// Delete mapping from the token address to nonce of lock instance and pop
+    /// Delete mapping from the token address to nonce of the lock instance and pop
     uint64[] storage tokenAddress = tokenToLock[lockInstance[_nonce].tokenAddress];
     for (uint64 i = 0; i < tokenAddress.length; i++) {
       if (tokenAddress[i] == _nonce) {
@@ -625,7 +734,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
       /// Set time elapsed to time block
       timeElapsed = timeBlock;
     } else if (startDate < block.timestamp) {
-      /// Set time elapsed to the time elapse
+      /// Set time elapsed to the time elapsed
       timeElapsed = uint64(block.timestamp) - startDate;
     }
 
