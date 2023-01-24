@@ -343,6 +343,8 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    * @param endTime time in seconds to add to the existing end date
    */
   function relockWhitelist(uint64 _nonce, uint amount, uint64 startTime, uint64 endTime) external {
+    address tokenAddress = lockInstance[_nonce].tokenAddress;
+
     /// Check if the token is whitelisted
     require(whitelistContract.getIsWhitelisted(lockInstance[_nonce].tokenAddress), "Token is not whitelisted");
     /// Check that sender is the lock owner
@@ -355,8 +357,12 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     require(endTime + lockInstance[_nonce].endDate < 10000000000, "End date");
 
     if (amount > 0) {
-      lockInstance[_nonce].currentAmount += amount;
-      lockInstance[_nonce].depositAmount += amount;
+      uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
+      /// Transfer tokens from sender to contract
+      transferTokensFrom(tokenAddress, msg.sender, amount);
+      uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
+      lockInstance[_nonce].currentAmount += amountSent;
+      lockInstance[_nonce].depositAmount += amountSent;
     }
     if (startTime > 0) lockInstance[_nonce].startDate += startTime;
     if (endTime > 0) lockInstance[_nonce].endDate += endTime;
@@ -370,6 +376,8 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    * @param endTime time in seconds to add to the existing end date
    */
   function relockPercent(uint64 _nonce, uint amount, uint64 startTime, uint64 endTime) external {
+    address tokenAddress = lockInstance[_nonce].tokenAddress;
+
     /// Check that sender is the lock owner
     require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
     /// Check if sender has adequate token blance if sender is adding tokens to the lock
@@ -388,8 +396,12 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     transferTokensTo(lockInstance[_nonce].tokenAddress, feeCollector, tokenFee);
 
     if (amount > 0) {
-      lockInstance[_nonce].currentAmount += amount;
-      lockInstance[_nonce].depositAmount += amount;
+      uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
+      /// Transfer tokens from sender to contract
+      transferTokensFrom(tokenAddress, msg.sender, amount);
+      uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
+      lockInstance[_nonce].currentAmount += amountSent;
+      lockInstance[_nonce].depositAmount += amountSent;
     }
     if (startTime > 0) lockInstance[_nonce].startDate += startTime;
     if (endTime > 0) lockInstance[_nonce].endDate += endTime;
@@ -403,20 +415,26 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    * @param endTime time in seconds to add to the existing end date
    */
   function relockETH(uint64 _nonce, uint amount, uint64 startTime, uint64 endTime) external payable {
+    address tokenAddress = lockInstance[_nonce].tokenAddress;
+
     /// Check if msg value is correct
     require(msg.value == ethRelockPrice, "Incorrect Price");
     /// Check that sender is the lock owner
     require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
     /// Check if sender has adequate token blance if sender is adding tokens to the lock
-    if (amount > 0) require(IERC20Upgradeable(lockInstance[_nonce].tokenAddress).balanceOf(msg.sender) >= amount, "Token balance");
+    if (amount > 0) require(IERC20Upgradeable(tokenAddress).balanceOf(msg.sender) >= amount, "Token balance");
     /// Standard lock start dates cannot be modified
     if (lockInstance[_nonce].startDate == 0) require(startTime == 0, "Cannot modify start date of standard lock");
     /// Check for end date upper bounds
     require(endTime + lockInstance[_nonce].endDate < 10000000000, "End date");
 
     if (amount > 0) {
-      lockInstance[_nonce].currentAmount += amount;
-      lockInstance[_nonce].depositAmount += amount;
+      uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
+      /// Transfer tokens from sender to contract
+      transferTokensFrom(tokenAddress, msg.sender, amount);
+      uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
+      lockInstance[_nonce].currentAmount += amountSent;
+      lockInstance[_nonce].depositAmount += amountSent;
     }
     if (startTime > 0) lockInstance[_nonce].startDate += startTime;
     if (endTime > 0) lockInstance[_nonce].endDate += endTime;

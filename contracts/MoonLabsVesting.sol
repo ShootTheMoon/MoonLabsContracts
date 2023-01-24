@@ -99,7 +99,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
   /*|| === EXTERNAL FUNCTIONS === ||*/
   /**  
-    @notice Create one or multiple vesting instances for a single token for whitelisted tokens.
+    @notice Create one or multiple vesting instances for a single token with no fees. Only available for whitelisted tokens.
    * @param tokenAddress Contract address of the erc20 token
    * @param lock array of LockParams struct(s) containing:
    *    withdrawAddress The address of the receiving wallet
