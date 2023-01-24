@@ -373,7 +373,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     /// Check that amount is not 0
     require(amount > 0, "Zero transfer");
 
-    /// To maintain linear lock integrity, the deposit amount must maintain proportional to the current deposit amount
+    /// To maintain linear lock integrity, the deposit amount must maintain proportional to the current amount
 
     /// Convert amount to corresponding deposit amount and subtract from lock inital deposit
     lockInstance[_nonce].depositAmount -= MathUpgradeable.mulDiv(depositAmount, amount, currentAmount);
@@ -410,7 +410,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     /// Check that amount is not 0
     require(amount > 0, "Zero transfer");
 
-    /// To maintain linear lock integrity, the deposit amount must maintain proportional to the current deposit amount
+    /// To maintain linear lock integrity, the deposit amount must maintain proportional to the current amount
 
     /// Convert amount to corresponding deposit amount and subtract from lock inital deposit
     lockInstance[_nonce].depositAmount -= MathUpgradeable.mulDiv(depositAmount, amount, currentAmount);
@@ -453,7 +453,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     /// Transfer token fees to the collector address
     transferTokensTo(tokenAddress, feeCollector, tokenFee);
 
-    /// To maintain linear lock integrity, the deposit amount must maintain proportional to the current deposit amount
+    /// To maintain linear lock integrity, the deposit amount must maintain proportional to the current amount
 
     /// Convert amount to corresponding deposit amount and subtract from lock inital deposit
     lockInstance[_nonce].depositAmount -= MathUpgradeable.mulDiv(depositAmount, amount, currentAmount);
