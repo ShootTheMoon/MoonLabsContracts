@@ -91,6 +91,23 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
   }
 
   /**
+   * @notice Delete code from an assigned address. The address must be in use. Owner only function.
+   * @param code to be deleted
+   */
+  function deleteCodeOwner(string calldata code) external onlyOwner {
+    /// Convert input to uppercase
+    string memory _code = upper(code);
+    /// Check if the code is bound to an address
+    require(checkIfActive(code) == true, "Code not in use");
+    /// Delete mappings
+    delete addressToCode[codeToAddress[_code]];
+    delete codeToAddress[_code];
+    delete rewardsEarned[_code];
+    delete rewardsEarnedUSD[_code];
+    index--;
+  }
+
+  /**
    * @notice Binds a code to new a address and resets commission earned on that code. Only the code owner can transfer their code. The new owner's *
    * address must not be in use.
    * @param code to be bound to address
@@ -146,23 +163,6 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     addressToCode[newOwner] = _code;
     codeToAddress[_code] = newOwner;
     index++;
-  }
-
-  /**
-   * @notice Delete code from an assigned address. The address must be in use. Owner only function.
-   * @param code to be deleted
-   */
-  function deleteCodeOwner(string calldata code) external onlyOwner {
-    /// Convert input to uppercase
-    string memory _code = upper(code);
-    /// Check if the code is bound to an address
-    require(checkIfActive(code) == true, "Code not in use");
-    /// Delete mappings
-    delete addressToCode[codeToAddress[_code]];
-    delete codeToAddress[_code];
-    delete rewardsEarned[_code];
-    delete rewardsEarnedUSD[_code];
-    index--;
   }
 
   /**
@@ -258,6 +258,14 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     return codeToAddress[_code];
   }
 
+  /**
+   * @notice Send all eth in contract to caller.
+   */
+  function claimETH() external onlyOwner {
+    (bool sent, bytes memory data) = (msg.sender).call{ value: address(this).balance }("");
+    require(sent, "Failed to send Ether");
+  }
+
   /*|| === PUBLIC FUNCTIONS === ||*/
   /**
    * @notice Remove code from reserved list. Only owner function.
@@ -328,7 +336,6 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     if (_b1 >= 0x61 && _b1 <= 0x7A) {
       return bytes1(uint8(_b1) - 32);
     }
-
     return _b1;
   }
 }

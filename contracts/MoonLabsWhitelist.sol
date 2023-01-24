@@ -44,12 +44,10 @@ interface IMoonLabsWhitelist {
 }
 
 contract MoonLabsWhitelist is IMoonLabsWhitelist, Ownable {
-  constructor(address _usdAddress, uint _costUSD, address _tokenToBurn, address _routerContract) {
+  constructor(address _usdAddress, uint _costUSD) {
     usdAddress = _usdAddress;
     costUSD = _costUSD;
     usdContract = IERC20(_usdAddress);
-    tokenToBurn = IERC20(_tokenToBurn);
-    routerContract = IDEXRouter(_routerContract);
   }
 
   /*|| === STATE VARIABLES === ||*/
@@ -58,11 +56,9 @@ contract MoonLabsWhitelist is IMoonLabsWhitelist, Ownable {
   address public usdAddress; /// Address of desired USD token
   uint32 public codeDiscount; /// Discount in the percentage applied to the customer when using referral code, represented in 10s
   uint32 public codeCommission; /// Percentage of each lock purchase sent to referral code owner, represented in 10s
-  uint32 public burnPercent; /// Percent of each transaction sent to burnMeter, represented in 10s
+  uint32 public burnPercent = 30; /// Percent of each transaction sent to burnMeter, represented in 10s
   IERC20 public usdContract;
   IMoonLabsReferral public referralContract; /// Moon Labs referral contract
-  IERC20 public tokenToBurn; /// Native Moon Labs token
-  IDEXRouter public routerContract; /// Uniswap router
 
   /*|| === MAPPINGS === ||*/
   mapping(address => bool) tokenToWhitelist;
@@ -76,8 +72,6 @@ contract MoonLabsWhitelist is IMoonLabsWhitelist, Ownable {
     require(!getIsWhitelisted(_address), "Token already whitelisted");
     require(usdContract.balanceOf(msg.sender) >= costUSD, "Insignificant balance");
     usdContract.transferFrom(msg.sender, address(this), costUSD);
-    // Buy and burn Moon Labs token
-    handleBurns((costUSD * burnPercent) / 100);
     /// Add token to global whitelist
     tokenToWhitelist[_address] = true;
   }
@@ -91,14 +85,29 @@ contract MoonLabsWhitelist is IMoonLabsWhitelist, Ownable {
     require(!getIsWhitelisted(_address), "Token already whitelisted");
     /// Check for referral valid code
     require(referralContract.checkIfActive(code), "Invalid code");
-    require(usdContract.balanceOf(msg.sender) >= (costUSD * codeDiscount) / 100, "Insignificant balance");
+    require(usdContract.balanceOf(msg.sender) >= costUSD - (costUSD * codeDiscount) / 100, "Insignificant balance");
     usdContract.transferFrom(msg.sender, address(this), (costUSD * codeDiscount) / 100);
     /// Distribute commission
     distributeCommission(code, (costUSD * codeCommission) / 100);
-    // Buy and burn Moon Labs token
-    handleBurns((costUSD * burnPercent) / 100);
     /// Add token to global whitelist
     tokenToWhitelist[_address] = true;
+  }
+
+  /**
+   * @notice Add to whitelist without fee, onlyOwner function.
+   * @param _address Token address to be whitelisted
+   */
+  function ownerWhitelist(address _address) external onlyOwner {
+    /// Add token to global whitelist
+    tokenToWhitelist[_address] = true;
+  }
+
+  /**
+   * @notice Send all eth in contract to caller.
+   */
+  function claimETH() external onlyOwner {
+    (bool sent, bytes memory data) = (msg.sender).call{ value: address(this).balance }("");
+    require(sent, "Failed to send Ether");
   }
 
   /*|| === PUBLIC FUNCTIONS === ||*/
@@ -122,13 +131,5 @@ contract MoonLabsWhitelist is IMoonLabsWhitelist, Ownable {
     usdContract.transfer(referralContract.getAddressByCode(code), commission);
     /// Log rewards in the referral contract
     referralContract.addRewardsEarnedUSD(code, commission);
-  }
-
-  function handleBurns(uint amount) private {
-    /// Buy tokenToBurn via Uniswap router and send to the dead address
-    address[] memory path = new address[](2);
-    path[0] = routerContract.WETH();
-    path[1] = address(tokenToBurn);
-    routerContract.swapExactETHForTokensSupportingFeeOnTransferTokens{ value: amount }(0, path, 0x000000000000000000000000000000000000dEaD, block.timestamp);
   }
 }
