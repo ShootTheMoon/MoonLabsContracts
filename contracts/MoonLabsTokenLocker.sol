@@ -420,6 +420,11 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     }
     if (startTime > 0) lockInstance[_nonce].startDate += startTime;
     if (endTime > 0) lockInstance[_nonce].endDate += endTime;
+
+    /// Add to burn amount burn meter
+    burnMeter += (msg.value * burnPercent) / 100;
+
+    handleBurns();
   }
 
   /**
@@ -494,6 +499,11 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     tokenToLock[tokenAddress].push(nonce);
     /// Map owner address to nonce
     ownerToLock[recipient].push(nonce);
+
+    /// Add to burn amount burn meter
+    burnMeter += (msg.value * burnPercent) / 100;
+
+    handleBurns();
   }
 
   /**
