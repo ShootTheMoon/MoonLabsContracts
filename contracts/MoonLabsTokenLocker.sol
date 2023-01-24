@@ -48,49 +48,29 @@ interface IMoonLabsWhitelist {
 }
 
 contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
-  function initialize(
-    address _tokenToBurn,
-    uint32 _burnPercent,
-    uint32 _percentLockPrice,
-    uint _ethLockPrice,
-    uint _ethSplitPrice,
-    address _feeCollector,
-    address referralAddress,
-    address whitelistAddress,
-    address routerAddress,
-    uint32 _codeDiscount,
-    uint32 _codeCommission,
-    uint _burnThreshold
-  ) public initializer {
+  function initialize(address _tokenToBurn, address _feeCollector, address referralAddress, address whitelistAddress, address routerAddress) public initializer {
     __Ownable_init();
     tokenToBurn = IERC20Upgradeable(_tokenToBurn);
-    burnPercent = _burnPercent;
-    percentLockPrice = _percentLockPrice;
-    ethLockPrice = _ethLockPrice;
-    ethSplitPrice = _ethSplitPrice;
     feeCollector = _feeCollector;
     referralContract = IMoonLabsReferral(referralAddress);
     whitelistContract = IMoonLabsWhitelist(whitelistAddress);
     routerContract = IDEXRouter(routerAddress);
-    codeDiscount = _codeDiscount;
-    codeCommission = _codeCommission;
-    burnThreshold = _burnThreshold;
   }
 
   /*|| === STATE VARIABLES === ||*/
-  uint public ethLockPrice; /// Price in WEI for each lock instance when paying for lock with ETH
-  uint public ethSplitPrice; /// Price in WEI for each lock instance when splitting lock with ETH
-  uint public ethRelockPrice; /// Price in WEI for each lock instance when relocking lock with ETH
-  uint public burnThreshold; /// ETH in WEI when tokenToBurn should be bought and sent to DEAD address
+  uint public ethLockPrice = .008 ether; /// Price in WEI for each lock instance when paying for lock with ETH
+  uint public ethSplitPrice = .004 ether; /// Price in WEI for each lock instance when splitting lock with ETH
+  uint public ethRelockPrice = .004 ether; /// Price in WEI for each lock instance when relocking lock with ETH
+  uint public burnThreshold = .5 ether; /// ETH in WEI when tokenToBurn should be bought and sent to DEAD address
   uint public burnMeter; /// Current ETH in WEI for buying and burning tokenToBurn
   address public feeCollector; /// Fee collection address for paying with token percent
   uint64 public nonce; /// Unique lock identifier
-  uint32 public codeDiscount; /// Discount in the percentage applied to the customer when using referral code, represented in 10s
-  uint32 public codeCommission; /// Percentage of each lock purchase sent to referral code owner, represented in 10s
-  uint32 public burnPercent; /// Percent of each transaction sent to burnMeter, represented in 10s
-  uint32 public percentLockPrice; /// Percent of deposited tokens taken for a lock that is paid for using tokens, represented in 10000s
-  uint32 public percentSplitPrice; /// Percent of deposited tokens taken for a split that is paid for using tokens. represented in 10000s
-  uint32 public percentRelockPrice; /// Percent of deposited tokens taken for a relock that is paid for using tokens. represented in 10000s
+  uint32 public codeDiscount = 10; /// Discount in the percentage applied to the customer when using referral code, represented in 10s
+  uint32 public codeCommission = 10; /// Percentage of each lock purchase sent to referral code owner, represented in 10s
+  uint32 public burnPercent = 30; /// Percent of each transaction sent to burnMeter, represented in 10s
+  uint32 public percentLockPrice = 30; /// Percent of deposited tokens taken for a lock that is paid for using tokens, represented in 10000s
+  uint32 public percentSplitPrice = 30; /// Percent of deposited tokens taken for a split that is paid for using tokens. represented in 10000s
+  uint32 public percentRelockPrice = 30; /// Percent of deposited tokens taken for a relock that is paid for using tokens. represented in 10000s
   IERC20Upgradeable public tokenToBurn; /// Native Moon Labs token
   IDEXRouter public routerContract; /// Uniswap router
   IMoonLabsReferral public referralContract; /// Moon Labs referral contract
@@ -603,11 +583,27 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   }
 
   /**
-   * @notice Set the price for a single vesting instance in WEI. Owner only function.
+   * @notice Set the price for a single lock instance in WEI. Owner only function.
    * @param _ethLockPrice Amount of ETH in WEI
    */
   function setLockPrice(uint _ethLockPrice) external onlyOwner {
     ethLockPrice = _ethLockPrice;
+  }
+
+  /**
+   * @notice Set the price splitting a lock in WEI. Owner only function.
+   * @param _ethSplitPrice Amount of ETH in WEI
+   */
+  function setSplitPrice(uint _ethSplitPrice) external onlyOwner {
+    ethSplitPrice = _ethSplitPrice;
+  }
+
+  /**
+   * @notice Set the price for relocking a lock in WEI. Owner only function.
+   * @param _ethRelockPrice Amount of ETH in WEI
+   */
+  function setRelockPrice(uint _ethRelockPrice) external onlyOwner {
+    ethRelockPrice = _ethRelockPrice;
   }
 
   /**
@@ -650,6 +646,24 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   function setPercentLockPrice(uint32 _percentLockPrice) external onlyOwner {
     require(_percentLockPrice <= 10000, "Max percent");
     percentLockPrice = _percentLockPrice;
+  }
+
+  /**
+   * @notice Set the percent of deposited tokens taken for a split that is paid for using tokens. Owner only function.
+   * @param _percentSplitPrice Percentage represented in 10000s
+   */
+  function setPercentSplitPrice(uint32 _percentSplitPrice) external onlyOwner {
+    require(_percentSplitPrice <= 10000, "Max percent");
+    percentSplitPrice = _percentSplitPrice;
+  }
+
+  /**
+   * @notice Set the percent of deposited tokens taken for a relock that is paid for using tokens. Owner only function.
+   * @param _percentRelockPrice Percentage represented in 10000s
+   */
+  function setPercentRelockPrice(uint32 _percentRelockPrice) external onlyOwner {
+    require(_percentRelockPrice <= 10000, "Max percent");
+    percentRelockPrice = _percentRelockPrice;
   }
 
   /**
