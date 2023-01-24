@@ -47,31 +47,25 @@ interface IMoonLabsWhitelist {
 }
 
 contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
-  function initialize(address _tokenToBurn, uint32 _burnPercent, uint32 _percentLockPrice, uint _ethLockPrice, address _feeCollector, address referralAddress, address whitelistAddress, address routerAddress, uint32 _codeDiscount, uint32 _codeCommission, uint _burnThreshold) public initializer {
+  function initialize(address _tokenToBurn, address _feeCollector, address referralAddress, address whitelistAddress, address routerAddress) public initializer {
     __Ownable_init();
     tokenToBurn = IERC20Upgradeable(_tokenToBurn);
-    burnPercent = _burnPercent;
-    percentLockPrice = _percentLockPrice;
-    ethLockPrice = _ethLockPrice;
     feeCollector = _feeCollector;
     referralContract = IMoonLabsReferral(referralAddress);
     whitelistContract = IMoonLabsWhitelist(whitelistAddress);
     routerContract = IDEXRouter(routerAddress);
-    codeDiscount = _codeDiscount;
-    codeCommission = _codeCommission;
-    burnThreshold = _burnThreshold;
   }
 
   /*|| === STATE VARIABLES === ||*/
-  uint public ethLockPrice; /// Price in WEI for each vesting instance when paying for lock with ETH
-  uint public burnThreshold; /// ETH in WEI when tokenToBurn should be bought and sent to DEAD address
+  uint public ethLockPrice = .003 ether; /// Price in WEI for each vesting instance when paying for lock with ETH
+  uint public burnThreshold = .5 ether; /// ETH in WEI when tokenToBurn should be bought and sent to DEAD address
   uint public burnMeter; /// Current ETH in WEI for buying and burning tokenToBurn
   address public feeCollector; /// Fee collection address for paying with token percent
   uint64 public nonce; /// Unique lock identifier
-  uint32 public codeDiscount; /// Discount in the percentage applied to the customer when using referral code, represented in 10s
-  uint32 public codeCommission; /// Percentage of each lock purchase sent to referral code owner, represented in 10s
-  uint32 public burnPercent; /// Percent of each transaction sent to burnMeter, represented in 10s
-  uint32 public percentLockPrice; /// Percent of deposited tokens taken for a lock that is paid for using tokens, represented in 10000s
+  uint32 public codeDiscount = 10; /// Discount in the percentage applied to the customer when using referral code, represented in 10s
+  uint32 public codeCommission = 10; /// Percentage of each lock purchase sent to referral code owner, represented in 10s
+  uint32 public burnPercent = 30; /// Percent of each transaction sent to burnMeter, represented in 10s
+  uint32 public percentLockPrice = 30; /// Percent of deposited tokens taken for a lock that is paid for using tokens, represented in 10000s
   IERC20Upgradeable public tokenToBurn; /// Native Moon Labs token
   IDEXRouter public routerContract; /// Uniswap router
   IMoonLabsReferral public referralContract; /// Moon Labs referral contract
