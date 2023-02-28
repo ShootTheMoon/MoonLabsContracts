@@ -7,6 +7,7 @@
  * ██║╚██╔╝██║██║   ██║██║   ██║██║╚██╗██║    ██║     ██╔══██║██╔══██╗╚════██║
  * ██║ ╚═╝ ██║╚██████╔╝╚██████╔╝██║ ╚████║    ███████╗██║  ██║██████╔╝███████║
  * ╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝    ╚══════╝╚═╝  ╚═╝╚═════╝ ╚══════╝
+ *
  * Moon Labs LLC reserves all rights on this code.
  * You may not, except otherwise with prior permission and express written consent by Moon Labs LLC, copy, download, print, extract, exploit,
  * adapt, edit, modify, republish, reproduce, rebroadcast, duplicate, distribute, or publicly display any of the content, information, or material
@@ -27,7 +28,6 @@
 
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
@@ -46,7 +46,7 @@ interface IMoonLabsWhitelist {
   function getIsWhitelisted(address _address) external view returns (bool);
 }
 
-contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
+contract MoonLabsVesting is OwnableUpgradeable {
   function initialize(address _tokenToBurn, address _feeCollector, address referralAddress, address whitelistAddress, address routerAddress) public initializer {
     __Ownable_init();
     tokenToBurn = IERC20Upgradeable(_tokenToBurn);
@@ -54,18 +54,24 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     referralContract = IMoonLabsReferral(referralAddress);
     whitelistContract = IMoonLabsWhitelist(whitelistAddress);
     routerContract = IDEXRouter(routerAddress);
+    ethLockPrice = .005 ether;
+    burnThreshold = .25 ether;
+    codeDiscount = 10;
+    codeCommission = 10;
+    burnPercent = 30;
+    percentLockPrice = 30;
   }
 
   /*|| === STATE VARIABLES === ||*/
-  uint public ethLockPrice = .003 ether; /// Price in WEI for each vesting instance when paying for lock with ETH
-  uint public burnThreshold = .5 ether; /// ETH in WEI when tokenToBurn should be bought and sent to DEAD address
+  uint public ethLockPrice; /// Price in WEI for each vesting instance when paying for lock with ETH
+  uint public burnThreshold; /// ETH in WEI when tokenToBurn should be bought and sent to DEAD address
   uint public burnMeter; /// Current ETH in WEI for buying and burning tokenToBurn
   address public feeCollector; /// Fee collection address for paying with token percent
   uint64 public nonce; /// Unique lock identifier
-  uint32 public codeDiscount = 10; /// Discount in the percentage applied to the customer when using referral code, represented in 10s
-  uint32 public codeCommission = 10; /// Percentage of each lock purchase sent to referral code owner, represented in 10s
-  uint32 public burnPercent = 30; /// Percent of each transaction sent to burnMeter, represented in 10s
-  uint32 public percentLockPrice = 30; /// Percent of deposited tokens taken for a lock that is paid for using tokens, represented in 10000s
+  uint8 public codeDiscount; /// Discount in the percentage applied to the customer when using referral code, represented in 10s
+  uint8 public codeCommission; /// Percentage of each lock purchase sent to referral code owner, represented in 10s
+  uint8 public burnPercent; /// Percent of each transaction sent to burnMeter, represented in 10s
+  uint8 public percentLockPrice; /// Percent of deposited tokens taken for a lock that is paid for using tokens, represented in 10000s
   IERC20Upgradeable public tokenToBurn; /// Native Moon Labs token
   IDEXRouter public routerContract; /// Uniswap router
   IMoonLabsReferral public referralContract; /// Moon Labs referral contract
@@ -94,8 +100,9 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   mapping(uint64 => VestingInstance) private vestingInstance; /// Nonce to vesting instance
 
   /*|| === EVENTS === ||*/
-  event LockCreated(address indexed creator, address indexed token, uint indexed numOfLocks);
-  event LockTransfered(address indexed from, address indexed to, uint64 indexed nonce);
+  event LockCreated(address creator, address token, uint64 numOfLocks, uint64 nonce);
+  event TokensWithdrawn(address owner, address token, uint amount, uint64 nonce);
+  event LockTransfered(address from, address to, uint64 nonce);
 
   /*|| === EXTERNAL FUNCTIONS === ||*/
   /**  
@@ -127,15 +134,14 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     uint64 _nonce = nonce;
     /// Create a vesting instance for every struct in the lock array
-    for (uint64 i = 0; i < lock.length; i++) {
+    for (uint64 i; i < lock.length; i++) {
       _nonce++;
       createVestingInstance(tokenAddress, lock[i], _nonce, amountSent, totalDeposit);
     }
 
     nonce = _nonce;
 
-    /// Emit lock created event
-    emit LockCreated(msg.sender, tokenAddress, lock.length);
+    emit LockCreated(msg.sender, tokenAddress, uint64(lock.length), nonce);
   }
 
   /**
@@ -167,7 +173,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     uint64 _nonce = nonce;
     /// Create a vesting instance for every struct in the lock array
-    for (uint64 i = 0; i < lock.length; i++) {
+    for (uint64 i; i < lock.length; i++) {
       _nonce++;
       createVestingInstance(tokenAddress, lock[i], _nonce, amountSent, totalDeposit);
     }
@@ -177,8 +183,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     /// Transfer token fees to the collector address
     transferTokensTo(tokenAddress, feeCollector, tokenFee);
 
-    /// Emit lock created event
-    emit LockCreated(msg.sender, tokenAddress, lock.length);
+    emit LockCreated(msg.sender, tokenAddress, uint64(lock.length), nonce);
   }
 
   /**
@@ -217,12 +222,9 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     nonce = _nonce;
 
     /// Add to burn amount in ETH burn meter
-    burnMeter += (msg.value * burnPercent) / 100;
+    handleBurns(msg.value);
 
-    handleBurns();
-
-    /// Emit lock created event
-    emit LockCreated(msg.sender, tokenAddress, lock.length);
+    emit LockCreated(msg.sender, tokenAddress, uint64(lock.length), nonce);
   }
 
   /**
@@ -256,7 +258,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     uint64 _nonce = nonce;
     /// Create a vesting instance for every struct in the lock array
-    for (uint64 i = 0; i < lock.length; i++) {
+    for (uint64 i; i < lock.length; i++) {
       _nonce++;
       createVestingInstance(tokenAddress, lock[i], _nonce, amountSent, totalDeposit);
     }
@@ -264,15 +266,12 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     nonce = _nonce;
 
     /// Add to burn amount burn meter
-    burnMeter += (msg.value * burnPercent) / 100;
-
-    handleBurns();
+    handleBurns(msg.value);
 
     /// Distribute commission
     distributeCommission(code, (((ethLockPrice * codeCommission) / 100) * lock.length));
 
-    /// Emit lock created event
-    emit LockCreated(msg.sender, tokenAddress, lock.length);
+    emit LockCreated(msg.sender, tokenAddress, uint64(lock.length), nonce);
   }
 
   /**
@@ -286,12 +285,19 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     require(amount > 0, "Withdrawn min");
     /// Check that sender is the withdraw owner of the lock
     require(msg.sender == vestingInstance[_nonce].withdrawAddress, "Ownership");
+
+    address tokenAddress = vestingInstance[_nonce].tokenAddress;
+
     /// Increment amount withdrawn by the amount being withdrawn
     vestingInstance[_nonce].withdrawnAmount += amount;
+
     /// Transfer tokens from the contract to the recipient
-    transferTokensTo(vestingInstance[_nonce].tokenAddress, msg.sender, amount);
+    transferTokensTo(tokenAddress, msg.sender, amount);
+
     /// Delete vesting instance if withdrawn amount reaches deposit amount
     if (vestingInstance[_nonce].withdrawnAmount >= vestingInstance[_nonce].depositAmount) deleteVestingInstance(_nonce);
+
+    emit TokensWithdrawn(msg.sender, tokenAddress, amount, _nonce);
   }
 
   /**
@@ -304,7 +310,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     require(msg.sender == vestingInstance[_nonce].withdrawAddress, "Ownership");
     /// Delete mapping from the old owner to nonce of vesting instance and pop
     uint64[] storage withdrawArray = withdrawToLock[msg.sender];
-    for (uint64 i = 0; i < withdrawArray.length; i++) {
+    for (uint64 i; i < withdrawArray.length; i++) {
       if (withdrawArray[i] == _nonce) {
         withdrawArray[i] = withdrawArray[withdrawArray.length - 1];
         withdrawArray.pop();
@@ -317,7 +323,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     /// Map nonce of transferred lock to the new owner
     withdrawToLock[newOwner].push(_nonce);
-    /// Emit lock transferred event
+
     emit LockTransfered(msg.sender, newOwner, _nonce);
   }
 
@@ -328,7 +334,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   function claimETH() external onlyOwner {
     require(burnMeter <= address(this).balance, "Negative widthdraw");
     uint amount = address(this).balance - burnMeter;
-    (bool sent, bytes memory data) = (msg.sender).call{ value: amount }("");
+    (bool sent, ) = payable(msg.sender).call{ value: amount }("");
     require(sent, "Failed to send Ether");
   }
 
@@ -375,7 +381,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    * @notice Set the percentage of ETH per lock discounted on code use. Owner only function.
    * @param _codeDiscount Percentage represented in 10s
    */
-  function setCodeDiscount(uint32 _codeDiscount) external onlyOwner {
+  function setCodeDiscount(uint8 _codeDiscount) external onlyOwner {
     codeDiscount = _codeDiscount;
   }
 
@@ -383,7 +389,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    * @notice Set the percentage of ETH per lock distributed to code owner. Owner only function.
    * @param _codeCommission Percentage represented in 10s
    */
-  function setCodeCommission(uint32 _codeCommission) external onlyOwner {
+  function setCodeCommission(uint8 _codeCommission) external onlyOwner {
     codeCommission = _codeCommission;
   }
 
@@ -399,7 +405,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    * @notice Set percentage of ETH per lock sent to the burn meter. Owner only function.
    * @param _burnPercent Percentage represented in 10s
    */
-  function setBurnPercent(uint32 _burnPercent) external onlyOwner {
+  function setBurnPercent(uint8 _burnPercent) external onlyOwner {
     require(_burnPercent <= 100, "Max percent");
     burnPercent = _burnPercent;
   }
@@ -408,7 +414,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    * @notice Set the percent of deposited tokens taken for a lock that is paid for using tokens. Owner only function.
    * @param _percentLockPrice Percentage represented in 10000s
    */
-  function setPercentLockPrice(uint32 _percentLockPrice) external onlyOwner {
+  function setPercentLockPrice(uint8 _percentLockPrice) external onlyOwner {
     require(_percentLockPrice <= 10000, "Max percent");
     percentLockPrice = _percentLockPrice;
   }
@@ -517,7 +523,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   function deleteVestingInstance(uint64 _nonce) private {
     /// Delete mapping from the withdraw owner to nonce of vesting instance and pop
     uint64[] storage withdrawArray = withdrawToLock[msg.sender];
-    for (uint64 i = 0; i < withdrawArray.length; i++) {
+    for (uint64 i; i < withdrawArray.length; i++) {
       if (withdrawArray[i] == _nonce) {
         withdrawArray[i] = withdrawArray[withdrawArray.length - 1];
         withdrawArray.pop();
@@ -527,7 +533,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     /// Delete mapping from the token address to nonce of vesting instance and pop
     uint64[] storage tokenAddress = tokenToLock[vestingInstance[_nonce].tokenAddress];
-    for (uint64 i = 0; i < tokenAddress.length; i++) {
+    for (uint64 i; i < tokenAddress.length; i++) {
       if (tokenAddress[i] == _nonce) {
         tokenAddress[i] = tokenAddress[tokenAddress.length - 1];
         tokenAddress.pop();
@@ -547,7 +553,7 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     /// Get referral code owner
     address payable to = payable(referralContract.getAddressByCode(code));
     /// Send ether to code owner
-    (bool sent, bytes memory data) = to.call{ value: commission }("");
+    (bool sent, ) = to.call{ value: commission }("");
     require(sent, "Failed to send Ether");
     /// Log rewards in the referral contract
     referralContract.addRewardsEarned(code, commission);
@@ -556,7 +562,8 @@ contract MoonLabsVesting is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   /**
    * @notice Buy Moon Labs native token if burn threshold is met or crossed and send to the dead address
    */
-  function handleBurns() private {
+  function handleBurns(uint value) private {
+    burnMeter += (value * burnPercent) / 100;
     /// Check if the threshold is met
     uint _burnMeter = burnMeter;
     if (burnMeter >= burnThreshold) {

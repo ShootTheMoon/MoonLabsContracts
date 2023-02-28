@@ -1,383 +1,241 @@
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.7.0) (token/ERC20/ERC20.sol)
-pragma solidity ^0.8.7;
-
-import "@openzeppelin/contracts/interfaces/IERC20.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
 
 /**
- * @dev Implementation of the {IERC20} interface.
- *
- * This implementation is agnostic to the way tokens are created. This means
- * that a supply mechanism has to be added in a derived contract using {_mint}.
- * For a generic mechanism see {ERC20PresetMinterPauser}.
- *
- * TIP: For a detailed writeup see our guide
- * https://forum.openzeppelin.com/t/how-to-implement-erc20-supply-mechanisms/226[How
- * to implement supply mechanisms].
- *
- * We have followed general OpenZeppelin Contracts guidelines: functions revert
- * instead returning `false` on failure. This behavior is nonetheless
- * conventional and does not conflict with the expectations of ERC20
- * applications.
- *
- * Additionally, an {Approval} event is emitted on calls to {transferFrom}.
- * This allows applications to reconstruct the allowance for all accounts just
- * by listening to said events. Other implementations of the EIP may not emit
- * these events, as it isn't required by the specification.
- *
- * Finally, the non-standard {decreaseAllowance} and {increaseAllowance}
- * functions have been added to mitigate the well-known issues around setting
- * allowances. See {IERC20-approve}.
+ * ███╗   ███╗ ██████╗  ██████╗ ███╗   ██╗    ██╗      █████╗ ██████╗ ███████╗
+ * ████╗ ████║██╔═══██╗██╔═══██╗████╗  ██║    ██║     ██╔══██╗██╔══██╗██╔════╝
+ * ██╔████╔██║██║   ██║██║   ██║██╔██╗ ██║    ██║     ███████║██████╔╝███████╗
+ * ██║╚██╔╝██║██║   ██║██║   ██║██║╚██╗██║    ██║     ██╔══██║██╔══██╗╚════██║
+ * ██║ ╚═╝ ██║╚██████╔╝╚██████╔╝██║ ╚████║    ███████╗██║  ██║██████╔╝███████║
+ * ╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝    ╚══════╝╚═╝  ╚═╝╚═════╝ ╚══════╝
  */
-contract ERC20 is Context, IERC20 {
-  mapping(address => uint256) private _balances;
 
-  mapping(address => mapping(address => uint256)) private _allowances;
+pragma solidity 0.8.17;
 
-  uint256 private _totalSupply;
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
+import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-  string private _name;
-  string private _symbol;
+contract MoonLabs is ERC20, Ownable {
+  /*|| === STATE VARIABLES === ||*/
+  uint public launchDate;
+  address payable public marketingWallet;
+  address payable public teamWallet;
+  address payable public liqWallet;
+  address public immutable uniswapV2Pair;
+  IUniswapV2Router02 public immutable uniswapV2Router;
+  bool private inSwapAndLiquify;
+  bool public launched;
+  BuyTax public buyTax;
+  SellTax public sellTax;
 
-  /**
-   * @dev Sets the values for {name} and {symbol}.
-   *
-   * The default value of {decimals} is 18. To select a different value for
-   * {decimals} you should overload it.
-   *
-   * All two of these values are immutable: they can only be set once during
-   * construction.
-   */
-  constructor(string memory name_, string memory symbol_) {
-    _name = name_;
-    _symbol = symbol_;
+  uint private _supply = 100000000;
+  uint8 private _decimals = 9;
+  string private _name = "Moon Labs";
+  string private _symbol = "MLAB";
+  uint public numTokensSellForTax = 200000 * 10 ** _decimals;
+  bool public taxSwap = true;
+
+  /*|| === STRUCTS === ||*/
+  struct BuyTax {
+    uint16 liquidityTax;
+    uint16 marketingTax;
+    uint16 teamTax;
+    uint16 burnTax;
+    uint16 totalTax;
   }
 
-  /**
-   * @dev Returns the name of the token.
-   */
-  function name() public view virtual returns (string memory) {
-    return _name;
+  struct SellTax {
+    uint16 liquidityTax;
+    uint16 marketingTax;
+    uint16 teamTax;
+    uint16 burnTax;
+    uint16 totalTax;
   }
 
-  /**
-   * @dev Returns the symbol of the token, usually a shorter version of the
-   * name.
-   */
-  function symbol() public view virtual returns (string memory) {
-    return _symbol;
+  /*|| === MAPPINGS === ||*/
+  mapping(address => bool) public excludedFromFee;
+
+  /*|| === EVENTS === ||*/
+  event SwapAndLiquify(uint tokensSwapped, uint ethReceived, uint tokensIntoLiqudity);
+
+  /*|| === CONSTRUCTOR === ||*/
+  constructor(address payable _marketingWallet, address payable _teamWallet, address payable _liqWallet) ERC20(_name, _symbol) {
+    _mint(msg.sender, (_supply * 10 ** _decimals)); /// Mint and send all tokens to deployer
+    marketingWallet = _marketingWallet;
+    teamWallet = _teamWallet;
+    liqWallet = _liqWallet;
+
+    IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+    uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory()).createPair(address(this), _uniswapV2Router.WETH()); /// Create uniswap pair
+
+    uniswapV2Router = _uniswapV2Router;
+
+    excludedFromFee[address(uniswapV2Router)] = true;
+    excludedFromFee[msg.sender] = true;
+    excludedFromFee[marketingWallet] = true;
+    excludedFromFee[teamWallet] = true;
+    excludedFromFee[liqWallet] = true;
+
+    buyTax = BuyTax(1, 2, 1, 0, 4);
+    sellTax = SellTax(1, 2, 1, 0, 4);
   }
 
-  /**
-   * @dev Returns the number of decimals used to get its user representation.
-   * For example, if `decimals` equals `2`, a balance of `505` tokens should
-   * be displayed to a user as `5.05` (`505 / 10 ** 2`).
-   *
-   * Tokens usually opt for a value of 18, imitating the relationship between
-   * Ether and Wei. This is the value {ERC20} uses, unless this function is
-   * overridden;
-   *
-   * NOTE: This information is only used for _display_ purposes: it in
-   * no way affects any of the arithmetic of the contract, including
-   * {IERC20-balanceOf} and {IERC20-transfer}.
-   */
-  function decimals() public view virtual returns (uint8) {
-    return 18;
+  /*|| === MODIFIERS === ||*/
+  modifier lockTheSwap() {
+    inSwapAndLiquify = true;
+    _;
+    inSwapAndLiquify = false;
   }
 
+  /*|| === RECIEVE FUNCTION === ||*/
+  receive() external payable {}
+
+  /*|| === EXTERNAL FUNCTIONS === ||*/
+
   /**
-   * @dev See {IERC20-totalSupply}.
+   * @notice Enables initial trading and logs time of activation. Once trading is started it cannot be stopped.
    */
-  function totalSupply() public view virtual override returns (uint256) {
-    return _totalSupply;
+  function launch() external onlyOwner {
+    launched = true;
+    launchDate = block.timestamp;
   }
 
-  /**
-   * @dev See {IERC20-balanceOf}.
-   */
-  function balanceOf(address account) public view virtual override returns (uint256) {
-    return _balances[account];
+  function setMarketingWallet(address payable _marketingWallet) external onlyOwner {
+    require(_marketingWallet != address(0), "Address cannot be 0 address");
+    marketingWallet = _marketingWallet;
   }
 
-  /**
-   * @dev See {IERC20-transfer}.
-   *
-   * Requirements:
-   *
-   * - `to` cannot be the zero address.
-   * - the caller must have a balance of at least `amount`.
-   */
-  function transfer(address to, uint256 amount) public virtual override returns (bool) {
-    address owner = _msgSender();
-    _transfer(owner, to, amount);
-    return true;
+  function setTeamWallet(address payable _teamWallet) external onlyOwner {
+    require(_teamWallet != address(0), "Address cannot be 0 address");
+    teamWallet = _teamWallet;
   }
 
-  /**
-   * @dev See {IERC20-allowance}.
-   */
-  function allowance(address owner, address spender) public view virtual override returns (uint256) {
-    return _allowances[owner][spender];
+  function setLiqWallet(address payable _liqWallet) external onlyOwner {
+    require(_liqWallet != address(0), "Address cannot be 0 address");
+    liqWallet = _liqWallet;
   }
 
-  /**
-   * @dev See {IERC20-approve}.
-   *
-   * NOTE: If `amount` is the maximum `uint256`, the allowance is not updated on
-   * `transferFrom`. This is semantically equivalent to an infinite approval.
-   *
-   * Requirements:
-   *
-   * - `spender` cannot be the zero address.
-   */
-  function approve(address spender, uint256 amount) public virtual override returns (bool) {
-    address owner = _msgSender();
-    _approve(owner, spender, amount);
-    return true;
+  function addToWhitelist(address _address) external onlyOwner {
+    excludedFromFee[_address] = true;
   }
 
-  /**
-   * @dev See {IERC20-transferFrom}.
-   *
-   * Emits an {Approval} event indicating the updated allowance. This is not
-   * required by the EIP. See the note at the beginning of {ERC20}.
-   *
-   * NOTE: Does not update the allowance if the current allowance
-   * is the maximum `uint256`.
-   *
-   * Requirements:
-   *
-   * - `from` and `to` cannot be the zero address.
-   * - `from` must have a balance of at least `amount`.
-   * - the caller must have allowance for ``from``'s tokens of at least
-   * `amount`.
-   */
-  function transferFrom(address from, address to, uint256 amount) public virtual override returns (bool) {
-    address spender = _msgSender();
-    _spendAllowance(from, spender, amount);
-    _transfer(from, to, amount);
-    return true;
+  function removeFromWhitelist(address _address) external onlyOwner {
+    excludedFromFee[_address] = false;
   }
 
-  /**
-   * @dev Atomically increases the allowance granted to `spender` by the caller.
-   *
-   * This is an alternative to {approve} that can be used as a mitigation for
-   * problems described in {IERC20-approve}.
-   *
-   * Emits an {Approval} event indicating the updated allowance.
-   *
-   * Requirements:
-   *
-   * - `spender` cannot be the zero address.
-   */
-  function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
-    address owner = _msgSender();
-    _approve(owner, spender, allowance(owner, spender) + addedValue);
-    return true;
+  function setTaxSwap(bool _taxSwap) external onlyOwner {
+    taxSwap = _taxSwap;
   }
 
-  /**
-   * @dev Atomically decreases the allowance granted to `spender` by the caller.
-   *
-   * This is an alternative to {approve} that can be used as a mitigation for
-   * problems described in {IERC20-approve}.
-   *
-   * Emits an {Approval} event indicating the updated allowance.
-   *
-   * Requirements:
-   *
-   * - `spender` cannot be the zero address.
-   * - `spender` must have allowance for the caller of at least
-   * `subtractedValue`.
-   */
-  function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
-    address owner = _msgSender();
-    uint256 currentAllowance = allowance(owner, spender);
-    require(currentAllowance >= subtractedValue, "ERC20: decreased allowance below zero");
-    unchecked {
-      _approve(owner, spender, currentAllowance - subtractedValue);
-    }
-
-    return true;
+  function setBuyTax(uint16 liquidityTax, uint16 marketingTax, uint16 teamTax, uint16 burnTax) external onlyOwner {
+    uint16 totalTax = liquidityTax + marketingTax + teamTax + burnTax;
+    require(totalTax <= 10, "ERC20: total tax must not be greater than 10");
+    buyTax = BuyTax(liquidityTax, marketingTax, teamTax, burnTax, totalTax);
   }
 
-  /**
-   * @dev Moves `amount` of tokens from `from` to `to`.
-   *
-   * This internal function is equivalent to {transfer}, and can be used to
-   * e.g. implement automatic token fees, slashing mechanisms, etc.
-   *
-   * Emits a {Transfer} event.
-   *
-   * Requirements:
-   *
-   * - `from` cannot be the zero address.
-   * - `to` cannot be the zero address.
-   * - `from` must have a balance of at least `amount`.
-   */
-  function _transfer(address from, address to, uint256 amount) internal virtual {
+  function setSellTax(uint16 liquidityTax, uint16 marketingTax, uint16 teamTax, uint16 burnTax) external onlyOwner {
+    uint16 totalTax = liquidityTax + marketingTax + teamTax + burnTax;
+    require(totalTax <= 10, "ERC20: total tax must not be greater than 10");
+    sellTax = SellTax(liquidityTax, marketingTax, teamTax, burnTax, totalTax);
+  }
+
+  function setTokensToSellForTax(uint _numTokensSellForTax) external onlyOwner {
+    numTokensSellForTax = _numTokensSellForTax;
+  }
+
+  /*|| === INTERNAL FUNCTIONS === ||*/
+  function _transfer(address from, address to, uint amount) internal override {
     require(from != address(0), "ERC20: transfer from the zero address");
     require(to != address(0), "ERC20: transfer to the zero address");
+    require(balanceOf(from) >= amount, "ERC20: transfer amount exceeds balance");
 
-    _beforeTokenTransfer(from, to, amount);
+    /// If buy or sell
+    if ((from == uniswapV2Pair || to == uniswapV2Pair) && !inSwapAndLiquify) {
+      /// On sell and if tax swap enabled
+      if (to == uniswapV2Pair && taxSwap) {
+        uint contractTokenBalance = balanceOf(address(this));
+        /// If the contract balance reaches sell threshold
+        if (contractTokenBalance >= numTokensSellForTax) {
+          uint16 totalTokenTax = buyTax.totalTax + sellTax.totalTax;
+          uint16 marketingTax = buyTax.marketingTax + sellTax.marketingTax;
+          uint16 teamTax = buyTax.teamTax + sellTax.teamTax;
 
-    uint256 fromBalance = _balances[from];
-    require(fromBalance >= amount, "ERC20: transfer amount exceeds balance");
-    unchecked {
-      _balances[from] = fromBalance - amount;
-      // Overflow not possible: the sum of all balances is capped by totalSupply, and the sum is preserved by
-      // decrementing then incrementing.
-      _balances[to] += amount;
-    }
+          uint liquidityTokenCut = (numTokensSellForTax * (buyTax.liquidityTax + sellTax.liquidityTax)) / totalTokenTax;
+          uint burnTokenCut;
 
-    emit Transfer(from, to, amount);
+          /// Add tokens to lp
+          _swapAndLiquify(liquidityTokenCut);
 
-    _afterTokenTransfer(from, to, amount);
-  }
+          /// If burns are enabled
+          if (buyTax.burnTax != 0 || sellTax.burnTax != 0) {
+            burnTokenCut = (numTokensSellForTax * (buyTax.burnTax + sellTax.burnTax)) / totalTokenTax;
+            /// Send tokens to dead address
+            super._transfer(address(this), address(0xdead), burnTokenCut);
+          }
 
-  /** @dev Creates `amount` tokens and assigns them to `account`, increasing
-   * the total supply.
-   *
-   * Emits a {Transfer} event with `from` set to the zero address.
-   *
-   * Requirements:
-   *
-   * - `account` cannot be the zero address.
-   */
-  function _mint(address account, uint256 amount) internal virtual {
-    require(account != address(0), "ERC20: mint to the zero address");
+          /// Swap marketing and team tokens for ETH
+          _swapTokens(numTokensSellForTax - liquidityTokenCut - burnTokenCut);
 
-    _beforeTokenTransfer(address(0), account, amount);
-
-    _totalSupply += amount;
-    unchecked {
-      // Overflow not possible: balance + amount is at most totalSupply + amount, which is checked above.
-      _balances[account] += amount;
-    }
-    emit Transfer(address(0), account, amount);
-
-    _afterTokenTransfer(address(0), account, amount);
-  }
-
-  /**
-   * @dev Destroys `amount` tokens from `account`, reducing the
-   * total supply.
-   *
-   * Emits a {Transfer} event with `to` set to the zero address.
-   *
-   * Requirements:
-   *
-   * - `account` cannot be the zero address.
-   * - `account` must have at least `amount` tokens.
-   */
-  function _burn(address account, uint256 amount) internal virtual {
-    require(account != address(0), "ERC20: burn from the zero address");
-
-    _beforeTokenTransfer(account, address(0), amount);
-
-    uint256 accountBalance = _balances[account];
-    require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
-    unchecked {
-      _balances[account] = accountBalance - amount;
-      // Overflow not possible: amount <= accountBalance <= totalSupply.
-      _totalSupply -= amount;
-    }
-
-    emit Transfer(account, address(0), amount);
-
-    _afterTokenTransfer(account, address(0), amount);
-  }
-
-  /**
-   * @dev Sets `amount` as the allowance of `spender` over the `owner` s tokens.
-   *
-   * This internal function is equivalent to `approve`, and can be used to
-   * e.g. set automatic allowances for certain subsystems, etc.
-   *
-   * Emits an {Approval} event.
-   *
-   * Requirements:
-   *
-   * - `owner` cannot be the zero address.
-   * - `spender` cannot be the zero address.
-   */
-  function _approve(address owner, address spender, uint256 amount) internal virtual {
-    require(owner != address(0), "ERC20: approve from the zero address");
-    require(spender != address(0), "ERC20: approve to the zero address");
-
-    _allowances[owner][spender] = amount;
-    emit Approval(owner, spender, amount);
-  }
-
-  /**
-   * @dev Updates `owner` s allowance for `spender` based on spent `amount`.
-   *
-   * Does not update the allowance amount in case of infinite allowance.
-   * Revert if not enough allowance is available.
-   *
-   * Might emit an {Approval} event.
-   */
-  function _spendAllowance(address owner, address spender, uint256 amount) internal virtual {
-    uint256 currentAllowance = allowance(owner, spender);
-    if (currentAllowance != type(uint256).max) {
-      require(currentAllowance >= amount, "ERC20: insufficient allowance");
-      unchecked {
-        _approve(owner, spender, currentAllowance - amount);
+          /// Distribute to corresponding wallets
+          (marketingWallet).call{ value: (address(this).balance * marketingTax) / (marketingTax + teamTax) }("");
+          (teamWallet).call{ value: address(this).balance }("");
+        }
       }
+
+      uint transferAmount = amount;
+      if (!(excludedFromFee[from] || excludedFromFee[to])) {
+        require(launched, "Token not launched");
+        uint fees;
+
+        /// On sell
+        if (to == uniswapV2Pair) {
+          fees = sellTax.totalTax;
+
+          /// On buy
+        } else if (from == uniswapV2Pair) {
+          fees = buyTax.totalTax;
+        }
+        uint tokenFees = (amount * fees) / 100;
+        transferAmount -= tokenFees;
+        super._transfer(from, address(this), tokenFees);
+      }
+      super._transfer(from, to, transferAmount);
+    } else {
+      super._transfer(from, to, amount);
     }
   }
 
-  /**
-   * @dev Hook that is called before any transfer of tokens. This includes
-   * minting and burning.
-   *
-   * Calling conditions:
-   *
-   * - when `from` and `to` are both non-zero, `amount` of ``from``'s tokens
-   * will be transferred to `to`.
-   * - when `from` is zero, `amount` tokens will be minted for `to`.
-   * - when `to` is zero, `amount` of ``from``'s tokens will be burned.
-   * - `from` and `to` are never both zero.
-   *
-   * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
-   */
-  function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual {}
+  /*|| === PRIVATE FUNCTIONS === ||*/
 
-  /**
-   * @dev Hook that is called after any transfer of tokens. This includes
-   * minting and burning.
-   *
-   * Calling conditions:
-   *
-   * - when `from` and `to` are both non-zero, `amount` of ``from``'s tokens
-   * has been transferred to `to`.
-   * - when `from` is zero, `amount` tokens have been minted for `to`.
-   * - when `to` is zero, `amount` of ``from``'s tokens have been burned.
-   * - `from` and `to` are never both zero.
-   *
-   * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
-   */
-  function _afterTokenTransfer(address from, address to, uint256 amount) internal virtual {}
-}
+  function _swapTokens(uint tokenAmount) private lockTheSwap {
+    address[] memory path = new address[](2);
+    path[0] = address(this);
+    path[1] = uniswapV2Router.WETH();
 
-/**
- * @title SimpleToken
- * @dev Very simple ERC20 Token example, where all tokens are pre-assigned to the creator.
- * Note they can later distribute these tokens as they wish using `transfer` and other
- * `ERC20` functions.
- * Based on https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v2.5.1/contracts/examples/SimpleToken.sol
- */
-contract TestToken is ERC20 {
-  /**
-   * @dev Constructor that gives msg.sender all of existing tokens.
-   */
-  constructor() ERC20("TestToken", "TEST") {
-    _mint(msg.sender, 1000000000000 * 10 ** 18);
+    _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+    uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(tokenAmount, 0, path, address(this), block.timestamp);
   }
 
-  function tokenAddress() external view returns (address) {
-    return address(this);
+  function _swapAndLiquify(uint liquidityTokenCut) private lockTheSwap {
+    uint ethHalf = (liquidityTokenCut / 2);
+    uint tokenHalf = (liquidityTokenCut - ethHalf);
+
+    uint balanceBefore = address(this).balance;
+
+    _swapTokens(ethHalf);
+
+    uint balanceAfter = (address(this).balance - balanceBefore);
+
+    _addLiquidity(tokenHalf, balanceAfter);
+
+    emit SwapAndLiquify(ethHalf, balanceAfter, tokenHalf);
+  }
+
+  function _addLiquidity(uint tokenAmount, uint ethAmount) private lockTheSwap {
+    _approve(address(this), address(uniswapV2Router), tokenAmount);
+    uniswapV2Router.addLiquidityETH{ value: ethAmount }(address(this), tokenAmount, 0, 0, liqWallet, block.timestamp);
   }
 }

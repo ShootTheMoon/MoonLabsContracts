@@ -7,6 +7,7 @@
  * ██║╚██╔╝██║██║   ██║██║   ██║██║╚██╗██║    ██║     ██╔══██║██╔══██╗╚════██║
  * ██║ ╚═╝ ██║╚██████╔╝╚██████╔╝██║ ╚████║    ███████╗██║  ██║██████╔╝███████║
  * ╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝    ╚══════╝╚═╝  ╚═╝╚═════╝ ╚══════╝
+ *
  * Moon Labs LLC reserves all rights on this code.
  * You may not, except otherwise with prior permission and express written consent by Moon Labs LLC, copy, download, print, extract, exploit,
  * adapt, edit, modify, republish, reproduce, rebroadcast, duplicate, distribute, or publicly display any of the content, information, or material
@@ -28,7 +29,6 @@
 
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
@@ -47,7 +47,7 @@ interface IMoonLabsWhitelist {
   function getIsWhitelisted(address _address) external view returns (bool);
 }
 
-contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
+contract MoonLabsTokenLocker is OwnableUpgradeable {
   function initialize(address _tokenToBurn, address _feeCollector, address referralAddress, address whitelistAddress, address routerAddress) public initializer {
     __Ownable_init();
     tokenToBurn = IERC20Upgradeable(_tokenToBurn);
@@ -55,22 +55,32 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     referralContract = IMoonLabsReferral(referralAddress);
     whitelistContract = IMoonLabsWhitelist(whitelistAddress);
     routerContract = IDEXRouter(routerAddress);
+    ethLockPrice = .008 ether;
+    ethSplitPrice = .004 ether;
+    ethRelockPrice = .004 ether;
+    burnThreshold = .25 ether;
+    codeDiscount = 10;
+    codeCommission = 10;
+    burnPercent = 30;
+    percentLockPrice = 30;
+    percentSplitPrice = 15;
+    percentRelockPrice = 15;
   }
 
   /*|| === STATE VARIABLES === ||*/
-  uint public ethLockPrice = .008 ether; /// Price in WEI for each lock instance when paying for lock with ETH
-  uint public ethSplitPrice = .004 ether; /// Price in WEI for each lock instance when splitting lock with ETH
-  uint public ethRelockPrice = .004 ether; /// Price in WEI for each lock instance when relocking lock with ETH
-  uint public burnThreshold = .5 ether; /// ETH in WEI when tokenToBurn should be bought and sent to DEAD address
+  uint public ethLockPrice; /// Price in WEI for each lock instance when paying for lock with ETH
+  uint public ethSplitPrice; /// Price in WEI for each lock instance when splitting lock with ETH
+  uint public ethRelockPrice; /// Price in WEI for each lock instance when relocking lock with ETH
+  uint public burnThreshold; /// ETH in WEI when tokenToBurn should be bought and sent to DEAD address
   uint public burnMeter; /// Current ETH in WEI for buying and burning tokenToBurn
   address public feeCollector; /// Fee collection address for paying with token percent
   uint64 public nonce; /// Unique lock identifier
-  uint32 public codeDiscount = 10; /// Discount in the percentage applied to the customer when using referral code, represented in 10s
-  uint32 public codeCommission = 10; /// Percentage of each lock purchase sent to referral code owner, represented in 10s
-  uint32 public burnPercent = 30; /// Percent of each transaction sent to burnMeter, represented in 10s
-  uint32 public percentLockPrice = 30; /// Percent of deposited tokens taken for a lock that is paid for using tokens, represented in 10000s
-  uint32 public percentSplitPrice = 30; /// Percent of deposited tokens taken for a split that is paid for using tokens. represented in 10000s
-  uint32 public percentRelockPrice = 30; /// Percent of deposited tokens taken for a relock that is paid for using tokens. represented in 10000s
+  uint8 public codeDiscount; /// Discount in the percentage applied to the customer when using referral code, represented in 10s
+  uint8 public codeCommission; /// Percentage of each lock purchase sent to referral code owner, represented in 10s
+  uint8 public burnPercent; /// Percent of each transaction sent to burnMeter, represented in 10s
+  uint8 public percentLockPrice; /// Percent of deposited tokens taken for a lock that is paid for using tokens, represented in 10000s
+  uint8 public percentSplitPrice; /// Percent of deposited tokens taken for a split that is paid for using tokens. represented in 10000s
+  uint8 public percentRelockPrice; /// Percent of deposited tokens taken for a relock that is paid for using tokens. represented in 10000s
   IERC20Upgradeable public tokenToBurn; /// Native Moon Labs token
   IDEXRouter public routerContract; /// Uniswap router
   IMoonLabsReferral public referralContract; /// Moon Labs referral contract
@@ -99,13 +109,15 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   mapping(uint64 => LockInstance) private lockInstance; /// Nonce to lock
 
   /*|| === EVENTS === ||*/
-  event LockCreated(address indexed creator, address indexed token, uint indexed numOfLocks);
-  event TokensWithdrawn(address indexed from, address indexed token, uint64 indexed nonce);
-  event LockTransfered(address indexed from, address indexed to, uint64 indexed nonce);
+  event LockCreated(address creator, address token, uint64 numOfLocks, uint64 nonce);
+  event TokensWithdrawn(address owner, address token, uint amount, uint64 nonce);
+  event LockTransfered(address from, address to, uint64 nonce);
+  event LockRelocked(address owner, address token, uint64 nonce);
+  event LockSplit(address from, address to, uint64 nonce, uint64 newNonce);
 
   /*|| === EXTERNAL FUNCTIONS === ||*/
   /**  
-    @notice Create one or multiple lock instances for a single token with no fees. Only available for whitelisted tokens.
+   * @notice Create one or multiple lock instances for a single token with no fees. Only available for whitelisted tokens.
    * @param tokenAddress Contract address of the erc20 token
    * @param lock array of LockParams struct(s) containing:
    *    ownerAddress The address of the receiving wallet
@@ -116,7 +128,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   */
   function createLockWhitelist(address tokenAddress, LockParams[] calldata lock) external {
     /// Check if token is whitelisted
-    require(whitelistContract.getIsWhitelisted(tokenAddress), "Token is not whitelisted");
+    require(whitelistContract.getIsWhitelisted(tokenAddress), "Not whitelisted");
     /// Calculate total deposit
     uint totalDeposit;
     for (uint32 i; i < lock.length; i++) {
@@ -133,15 +145,14 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     uint64 _nonce = nonce;
     /// Create a lock instance for every struct in the lock array
-    for (uint64 i = 0; i < lock.length; i++) {
+    for (uint64 i; i < lock.length; i++) {
       _nonce++;
       createLockInstance(tokenAddress, lock[i], _nonce, amountSent, totalDeposit);
     }
 
     nonce = _nonce;
 
-    /// Emit lock created event
-    emit LockCreated(msg.sender, tokenAddress, lock.length);
+    emit LockCreated(msg.sender, tokenAddress, uint64(lock.length), nonce);
   }
 
   /**
@@ -173,7 +184,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     uint64 _nonce = nonce;
     /// Create a lock instance for every struct in the lock array
-    for (uint64 i = 0; i < lock.length; i++) {
+    for (uint64 i; i < lock.length; i++) {
       _nonce++;
       createLockInstance(tokenAddress, lock[i], _nonce, amountSent, totalDeposit);
     }
@@ -183,8 +194,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     /// Transfer token fees to the collector address
     transferTokensTo(tokenAddress, feeCollector, tokenFee);
 
-    /// Emit lock created event
-    emit LockCreated(msg.sender, tokenAddress, lock.length);
+    emit LockCreated(msg.sender, tokenAddress, uint64(lock.length), nonce);
   }
 
   /**
@@ -223,12 +233,9 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     nonce = _nonce;
 
     /// Add to burn amount in ETH burn meter
-    burnMeter += (msg.value * burnPercent) / 100;
+    handleBurns(msg.value);
 
-    handleBurns();
-
-    /// Emit lock created event
-    emit LockCreated(msg.sender, tokenAddress, lock.length);
+    emit LockCreated(msg.sender, tokenAddress, uint64(lock.length), nonce);
   }
 
   /**
@@ -263,7 +270,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     uint64 _nonce = nonce;
     /// Create a lock instance for every struct in the lock array
-    for (uint64 i = 0; i < lock.length; i++) {
+    for (uint64 i; i < lock.length; i++) {
       _nonce++;
       createLockInstance(tokenAddress, lock[i], _nonce, amountSent, totalDeposit);
     }
@@ -271,15 +278,12 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     nonce = _nonce;
 
     /// Add to burn amount burn meter
-    burnMeter += (msg.value * burnPercent) / 100;
-
-    handleBurns();
+    handleBurns(msg.value);
 
     /// Distribute commission
     distributeCommission(code, (((_ethLockPrice * codeCommission) / 100) * lock.length));
 
-    /// Emit lock created event
-    emit LockCreated(msg.sender, tokenAddress, lock.length);
+    emit LockCreated(msg.sender, tokenAddress, uint64(lock.length), nonce);
   }
 
   /**
@@ -294,16 +298,18 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     /// Check that sender is the lock owner
     require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
 
+    address tokenAddress = lockInstance[_nonce].tokenAddress;
+
     /// Decrement amount current by the amount being withdrawn
     lockInstance[_nonce].currentAmount -= amount;
 
     /// Transfer tokens from the contract to the recipient
-    transferTokensTo(lockInstance[_nonce].tokenAddress, msg.sender, amount);
+    transferTokensTo(tokenAddress, msg.sender, amount);
 
     /// Delete lock instance if current amount reaches zero
     if (lockInstance[_nonce].currentAmount <= 0) deleteLockInstance(_nonce);
 
-    emit TokensWithdrawn(msg.sender, lockInstance[_nonce].tokenAddress, _nonce);
+    emit TokensWithdrawn(msg.sender, tokenAddress, amount, _nonce);
   }
 
   /**
@@ -317,7 +323,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     /// Delete mapping from the old owner to nonce of lock instance and pop
     uint64[] storage withdrawArray = ownerToLock[msg.sender];
-    for (uint64 i = 0; i < withdrawArray.length; i++) {
+    for (uint64 i; i < withdrawArray.length; i++) {
       if (withdrawArray[i] == _nonce) {
         withdrawArray[i] = withdrawArray[withdrawArray.length - 1];
         withdrawArray.pop();
@@ -331,28 +337,34 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     /// Map nonce of transferred lock to the new owner
     ownerToLock[newOwner].push(_nonce);
 
-    /// Emit lock transferred event
     emit LockTransfered(msg.sender, newOwner, _nonce);
   }
 
   /**
-   * @notice Relock or add tokens to an existing lock with no fees. Only available for whitelisted tokens. Start date for standard locks are immutabke.
+   * @notice Relock or add tokens to an existing lock. If not whitelisted. fees are in ETH. Start date for standard locks are immutable.
    * @param _nonce lock instance id of the targeted lock
    * @param amount amount of tokens to relock, if any
    * @param startTime time in seconds to add to the existing start date
    * @param endTime time in seconds to add to the existing end date
    */
-  function relockWhitelist(uint64 _nonce, uint amount, uint64 startTime, uint64 endTime) external {
+  function relockETH(uint64 _nonce, uint amount, uint64 startTime, uint64 endTime) external payable {
     address tokenAddress = lockInstance[_nonce].tokenAddress;
 
-    /// Check if the token is whitelisted
-    require(whitelistContract.getIsWhitelisted(lockInstance[_nonce].tokenAddress), "Token is not whitelisted");
+    /// Check if token is whitelisted
+    if (whitelistContract.getIsWhitelisted(tokenAddress)) {
+      /// Check if msg value is 0
+      require(msg.value == 0, "Incorrect Price");
+    } else {
+      /// Check if msg value is correct
+      require(msg.value == ethRelockPrice, "Incorrect Price");
+    }
+
     /// Check that sender is the lock owner
     require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
     /// Check if sender has adequate token blance if sender is adding tokens to the lock
-    if (amount > 0) require(IERC20Upgradeable(lockInstance[_nonce].tokenAddress).balanceOf(msg.sender) >= amount, "Token balance");
+    if (amount > 0) require(IERC20Upgradeable(tokenAddress).balanceOf(msg.sender) >= amount, "Token balance");
     /// Standard lock start dates cannot be modified
-    if (lockInstance[_nonce].startDate == 0) require(startTime == 0, "Cannot modify start date of standard lock");
+    if (lockInstance[_nonce].startDate == 0) require(startTime == 0, "Start date");
     /// Check for end date upper bounds
     require(endTime + lockInstance[_nonce].endDate < 10000000000, "End date");
 
@@ -366,10 +378,15 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     }
     if (startTime > 0) lockInstance[_nonce].startDate += startTime;
     if (endTime > 0) lockInstance[_nonce].endDate += endTime;
+
+    /// Add to burn amount burn meter
+    handleBurns(msg.value);
+
+    emit LockRelocked(msg.sender, tokenAddress, _nonce);
   }
 
   /**
-   * @notice Relock or add tokens to an existing lock. Fees are in % of tokens in the lock. Start date for standard locks immutable.
+   * @notice Relock or add tokens to an existing lock. If not whitelisted, fees are in % of tokens in the lock. Start date for standard locks immutable.
    * @param _nonce lock instance id of the targeted lock
    * @param amount amount of tokens to relock, if any
    * @param startTime time in seconds to add to the existing start date
@@ -380,53 +397,27 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     /// Check that sender is the lock owner
     require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
-    /// Check if sender has adequate token blance if sender is adding tokens to the lock
-    if (amount > 0) require(IERC20Upgradeable(lockInstance[_nonce].tokenAddress).balanceOf(msg.sender) >= amount, "Token balance");
-    /// Standard lock start dates cannot be modified
-    if (lockInstance[_nonce].startDate == 0) require(startTime == 0, "Cannot modify start date of standard lock");
-    /// Check for end date upper bounds
-    require(endTime + lockInstance[_nonce].endDate < 10000000000, "End date");
 
-    /// Calculate the token fee based on total tokens in lock
-    uint tokenFee = MathUpgradeable.mulDiv(lockInstance[_nonce].currentAmount, percentRelockPrice, 10000);
-    /// Deduct fee from token balance
-    lockInstance[_nonce].currentAmount -= tokenFee;
-    lockInstance[_nonce].depositAmount -= tokenFee;
-    /// Transfer token fees to the collector address
-    transferTokensTo(lockInstance[_nonce].tokenAddress, feeCollector, tokenFee);
-
-    if (amount > 0) {
-      uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
-      /// Transfer tokens from sender to contract
-      transferTokensFrom(tokenAddress, msg.sender, amount);
-      uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
-      lockInstance[_nonce].currentAmount += amountSent;
-      lockInstance[_nonce].depositAmount += amountSent;
-    }
-    if (startTime > 0) lockInstance[_nonce].startDate += startTime;
-    if (endTime > 0) lockInstance[_nonce].endDate += endTime;
-  }
-
-  /**
-   * @notice Relock or add tokens to an existing lock. Fees are in ETH. Start date for standard locks are immutable.
-   * @param _nonce lock instance id of the targeted lock
-   * @param amount amount of tokens to relock, if any
-   * @param startTime time in seconds to add to the existing start date
-   * @param endTime time in seconds to add to the existing end date
-   */
-  function relockETH(uint64 _nonce, uint amount, uint64 startTime, uint64 endTime) external payable {
-    address tokenAddress = lockInstance[_nonce].tokenAddress;
-
-    /// Check if msg value is correct
-    require(msg.value == ethRelockPrice, "Incorrect Price");
-    /// Check that sender is the lock owner
-    require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
     /// Check if sender has adequate token blance if sender is adding tokens to the lock
     if (amount > 0) require(IERC20Upgradeable(tokenAddress).balanceOf(msg.sender) >= amount, "Token balance");
+
     /// Standard lock start dates cannot be modified
-    if (lockInstance[_nonce].startDate == 0) require(startTime == 0, "Cannot modify start date of standard lock");
+    if (lockInstance[_nonce].startDate == 0) require(startTime == 0, "Start date");
     /// Check for end date upper bounds
     require(endTime + lockInstance[_nonce].endDate < 10000000000, "End date");
+
+    /// Check if token is not whitelisted
+    if (!whitelistContract.getIsWhitelisted(tokenAddress)) {
+      /// Calculate the token fee based on total tokens in lock
+      uint tokenFee = MathUpgradeable.mulDiv(lockInstance[_nonce].currentAmount, percentRelockPrice, 10000);
+
+      /// Deduct fee from token balance
+      lockInstance[_nonce].currentAmount -= tokenFee;
+      lockInstance[_nonce].depositAmount -= tokenFee;
+
+      /// Transfer token fees to the collector address
+      transferTokensTo(tokenAddress, feeCollector, tokenFee);
+    }
 
     if (amount > 0) {
       uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
@@ -439,52 +430,11 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     if (startTime > 0) lockInstance[_nonce].startDate += startTime;
     if (endTime > 0) lockInstance[_nonce].endDate += endTime;
 
-    /// Add to burn amount burn meter
-    burnMeter += (msg.value * burnPercent) / 100;
-
-    handleBurns();
+    emit LockRelocked(msg.sender, tokenAddress, _nonce);
   }
 
   /**
-   * @notice Split a current lock into two separate locks amount determined by the sender. Whitelisted tokens only. This function supports both linear and standard locks.
-   * @param recipient address of split receiver
-   * @param _nonce ID of desired lock instance
-   * @param amount number of tokens sent to new lock
-   */
-  function splitLockWhitelist(address recipient, uint64 _nonce, uint amount) external {
-    uint currentAmount = lockInstance[_nonce].currentAmount;
-    uint depositAmount = lockInstance[_nonce].depositAmount;
-    address tokenAddress = lockInstance[_nonce].tokenAddress;
-
-    /// Check if the token is whitelisted
-    require(whitelistContract.getIsWhitelisted(tokenAddress), "Token is not whitelisted");
-    /// Check that sender is the lock owner
-    require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
-    /// Check that amount is less than the current amount in the lock
-    require(currentAmount > amount, "Transfer balance");
-    /// Check that amount is not 0
-    require(amount > 0, "Zero transfer");
-
-    /// To maintain linear lock integrity, the deposit amount must maintain proportional to the current amount
-
-    /// Convert amount to corresponding deposit amount and subtract from lock inital deposit
-    lockInstance[_nonce].depositAmount -= MathUpgradeable.mulDiv(depositAmount, amount, currentAmount);
-    /// Subtract amount from the current amount
-    lockInstance[_nonce].currentAmount -= amount;
-
-    nonce++;
-
-    /// Create a new lock instance and map to nonce
-    lockInstance[nonce] = LockInstance(tokenAddress, recipient, amount, MathUpgradeable.mulDiv(depositAmount, amount, currentAmount), lockInstance[_nonce].startDate, lockInstance[_nonce].endDate);
-    /// Map token address to nonce
-    tokenToLock[tokenAddress].push(nonce);
-    /// Map owner address to nonce
-    ownerToLock[recipient].push(nonce);
-  }
-
-  /**
-   * @notice Split a current lock into two separate locks amount determined by the sender. Fees are in % of tokens in the lock. This function supports both linear and standard locks.
-   * @param recipient address of split receiver
+   * @notice Split a current lock into two separate locks amount determined by the sender. If not whitelisted, fees are in eth. This function supports both linear and standard locks.
    * @param _nonce ID of desired lock instance
    * @param amount number of tokens sent to new lock
    */
@@ -493,12 +443,19 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     uint depositAmount = lockInstance[_nonce].depositAmount;
     address tokenAddress = lockInstance[_nonce].tokenAddress;
 
-    /// Check if msg value is correct
-    require(msg.value == ethSplitPrice, "Incorrect Price");
+    /// Check if token is whitelisted
+    if (whitelistContract.getIsWhitelisted(tokenAddress)) {
+      /// Check if msg value is 0
+      require(msg.value == 0, "Incorrect Price");
+    } else {
+      /// Check if msg value is correct
+      require(msg.value == ethSplitPrice, "Incorrect Price");
+    }
+
     /// Check that sender is the lock owner
     require(lockInstance[_nonce].ownerAddress == msg.sender, "Onwership");
     /// Check that amount is less than the current amount in the lock
-    require(currentAmount > amount, "Transfer balance");
+    require(currentAmount > amount, "Balance");
     /// Check that amount is not 0
     require(amount > 0, "Zero transfer");
 
@@ -519,17 +476,18 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     ownerToLock[recipient].push(nonce);
 
     /// Add to burn amount burn meter
-    burnMeter += (msg.value * burnPercent) / 100;
+    handleBurns(msg.value);
 
-    handleBurns();
+    emit LockSplit(msg.sender, recipient, _nonce, nonce);
   }
 
   /**
-   * @notice This function splits a current lock into two separate locks amount determined by the sender. Fees are in eth. This function supports both linear and standard locks.
+   * @notice This function splits a current lock into two separate locks amount determined by the sender. If not whitelisted, fees are in % of tokens in the lock. This function supports both linear and standard locks.
+   * @param recipient address of split receiver
    * @param recipient address of split receiver
    * @param _nonce ID of desired lock instance
    * @param amount number of tokens sent to new lock
-   * @dev tokens are deducted from the amount split
+   * @dev tokens are deducted from the original lock
    */
   function splitLockPercent(address recipient, uint64 _nonce, uint amount) external {
     uint currentAmount = lockInstance[_nonce].currentAmount;
@@ -539,17 +497,20 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     /// Check that sender is the lock owner
     require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
     /// Check that amount is less than the current amount in the lock
-    require(currentAmount > amount, "Transfer balance");
+    require(currentAmount > amount, "Balance");
     /// Check that amount is not 0
     require(amount > 0, "Zero transfer");
 
-    /// Calculate the token fee based on total tokens locked
-    uint tokenFee = MathUpgradeable.mulDiv(currentAmount, percentRelockPrice, 10000);
-    /// Deduct fee from token balance
-    lockInstance[_nonce].currentAmount -= tokenFee;
-    lockInstance[_nonce].depositAmount -= tokenFee;
-    /// Transfer token fees to the collector address
-    transferTokensTo(tokenAddress, feeCollector, tokenFee);
+    /// Check if token is not whitelisted
+    if (!whitelistContract.getIsWhitelisted(tokenAddress)) {
+      /// Calculate the token fee based on total tokens locked
+      uint tokenFee = MathUpgradeable.mulDiv(currentAmount, percentRelockPrice, 10000);
+      /// Deduct fee from token balance
+      lockInstance[_nonce].currentAmount -= tokenFee;
+      lockInstance[_nonce].depositAmount -= tokenFee;
+      /// Transfer token fees to the collector address
+      transferTokensTo(tokenAddress, feeCollector, tokenFee);
+    }
 
     /// To maintain linear lock integrity, the deposit amount must maintain proportional to the current amount
 
@@ -566,6 +527,8 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     tokenToLock[tokenAddress].push(nonce);
     /// Map owner address to nonce
     ownerToLock[recipient].push(nonce);
+
+    emit LockSplit(msg.sender, recipient, _nonce, nonce);
   }
 
   /**
@@ -575,7 +538,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   function claimETH() external onlyOwner {
     require(burnMeter <= address(this).balance, "Negative widthdraw");
     uint amount = address(this).balance - burnMeter;
-    (bool sent, bytes memory data) = (msg.sender).call{ value: amount }("");
+    (bool sent, ) = payable(msg.sender).call{ value: amount }("");
     require(sent, "Failed to send Ether");
   }
 
@@ -638,7 +601,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    * @notice Set the percentage of ETH per lock discounted on code use. Owner only function.
    * @param _codeDiscount Percentage represented in 10s
    */
-  function setCodeDiscount(uint32 _codeDiscount) external onlyOwner {
+  function setCodeDiscount(uint8 _codeDiscount) external onlyOwner {
     codeDiscount = _codeDiscount;
   }
 
@@ -646,7 +609,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    * @notice Set the percentage of ETH per lock distributed to the code owner. Owner only function.
    * @param _codeCommission Percentage represented in 10s
    */
-  function setCodeCommission(uint32 _codeCommission) external onlyOwner {
+  function setCodeCommission(uint8 _codeCommission) external onlyOwner {
     codeCommission = _codeCommission;
   }
 
@@ -662,7 +625,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    * @notice Set percentage of ETH per lock sent to the burn meter. Owner only function.
    * @param _burnPercent Percentage represented in 10s
    */
-  function setBurnPercent(uint32 _burnPercent) external onlyOwner {
+  function setBurnPercent(uint8 _burnPercent) external onlyOwner {
     require(_burnPercent <= 100, "Max percent");
     burnPercent = _burnPercent;
   }
@@ -671,7 +634,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    * @notice Set the percent of deposited tokens taken for a lock that is paid for using tokens. Owner only function.
    * @param _percentLockPrice Percentage represented in 10000s
    */
-  function setPercentLockPrice(uint32 _percentLockPrice) external onlyOwner {
+  function setPercentLockPrice(uint8 _percentLockPrice) external onlyOwner {
     require(_percentLockPrice <= 10000, "Max percent");
     percentLockPrice = _percentLockPrice;
   }
@@ -680,7 +643,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    * @notice Set the percent of deposited tokens taken for a split that is paid for using tokens. Owner only function.
    * @param _percentSplitPrice Percentage represented in 10000s
    */
-  function setPercentSplitPrice(uint32 _percentSplitPrice) external onlyOwner {
+  function setPercentSplitPrice(uint8 _percentSplitPrice) external onlyOwner {
     require(_percentSplitPrice <= 10000, "Max percent");
     percentSplitPrice = _percentSplitPrice;
   }
@@ -689,7 +652,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
    * @notice Set the percent of deposited tokens taken for a relock that is paid for using tokens. Owner only function.
    * @param _percentRelockPrice Percentage represented in 10000s
    */
-  function setPercentRelockPrice(uint32 _percentRelockPrice) external onlyOwner {
+  function setPercentRelockPrice(uint8 _percentRelockPrice) external onlyOwner {
     require(_percentRelockPrice <= 10000, "Max percent");
     percentRelockPrice = _percentRelockPrice;
   }
@@ -792,7 +755,8 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   /**
    * @notice Buy Moon Labs native token if burn threshold is met or crossed and send to the dead address
    */
-  function handleBurns() private {
+  function handleBurns(uint value) private {
+    burnMeter += (value * burnPercent) / 100;
     /// Check if the threshold is met
     uint _burnMeter = burnMeter;
     if (burnMeter >= burnThreshold) {
@@ -815,7 +779,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     /// Get referral code owner
     address payable to = payable(referralContract.getAddressByCode(code));
     /// Send ether to code owner
-    (bool sent, bytes memory data) = to.call{ value: commission }("");
+    (bool sent, ) = to.call{ value: commission }("");
     require(sent, "Failed to send Ether");
     /// Log rewards in the referral contract
     referralContract.addRewardsEarned(code, commission);
@@ -828,7 +792,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   function deleteLockInstance(uint64 _nonce) private {
     /// Delete mapping from the withdraw owner to nonce of lock instance and pop
     uint64[] storage ownerArray = ownerToLock[msg.sender];
-    for (uint64 i = 0; i < ownerArray.length; i++) {
+    for (uint64 i; i < ownerArray.length; i++) {
       if (ownerArray[i] == _nonce) {
         ownerArray[i] = ownerArray[ownerArray.length - 1];
         ownerArray.pop();
@@ -838,7 +802,7 @@ contract MoonLabsTokenLocker is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     /// Delete mapping from the token address to nonce of the lock instance and pop
     uint64[] storage tokenAddress = tokenToLock[lockInstance[_nonce].tokenAddress];
-    for (uint64 i = 0; i < tokenAddress.length; i++) {
+    for (uint64 i; i < tokenAddress.length; i++) {
       if (tokenAddress[i] == _nonce) {
         tokenAddress[i] = tokenAddress[tokenAddress.length - 1];
         tokenAddress.pop();

@@ -1,37 +1,50 @@
 const { ethers, upgrades } = require("hardhat");
 
 async function main() {
-  // WETH address
-  // const wethAddress = ethers.utils.getAddress("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
-  // const WETH = await ethers.getContractFactory("WETH9");
-  // const weth = WETH.attach(wethAddress);
-
-  // Uniswap router
-  // const routerAddress = ethers.utils.getAddress("0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D");
-  // const Router = await ethers.getContractFactory("UniswapV2Router02");
-  // const router = Router.attach(routerAddress);
-
-  // Uniswap factory
-  // const factoryAddress = ethers.utils.getAddress("0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f");
-  // const Factory = await ethers.getContractFactory("UniswapV2Factory");
-  // const factory = Factory.attach(factoryAddress);
-
-  // Deploy test token
-  // const TestToken = await ethers.getContractFactory("TestToken");
-  // const testToken = await TestToken.deploy();
-
   // const MoonLabsReferral = await ethers.getContractFactory("MoonLabsReferral");
   // const moonLabsReferral = await MoonLabsReferral.deploy();
 
-  const MoonLabsVesting = await ethers.getContractFactory("MoonLabsVesting");
+  // const MoonLabsWhitelist = await ethers.getContractFactory("MoonLabsWhitelist");
+  // const moonLabsWhitelist = await MoonLabsWhitelist.deploy("0xaD5D813ab94a32bfF64175C73a1bF49D590bB511", "100000000000000000000");
 
-  const moonLabsVesting = await upgrades.deployProxy(MoonLabsVesting, ["0xaD5D813ab94a32bfF64175C73a1bF49D590bB511", 30, 25, "100000000000000000", "0x3bd920C9cc9a40B9C9135e30ece4D3b49710551A", "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"], {
-    initializer: "initialize",
-  });
+  // const MoonLabsTokenLocker = await ethers.getContractFactory("MoonLabsTokenLocker");
+  // const moonLabsTokenLocker = await upgrades.deployProxy(
+  //   MoonLabsTokenLocker,
+  //   ["0xaD5D813ab94a32bfF64175C73a1bF49D590bB511", "0xDE5b07E03133e2724684e8700b7D170FEFd6C49D", "0xab772a83061bc344b3976b3bc4fbbda59d6b5af6", "0x8c3c28941b44e509d6247e59304a43d099264dbd", "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"],
+  //   {
+  //     initializer: "initialize",
+  //   }
+  // );
 
-  await moonLabsVesting.deployed();
-  console.log("Vesting contract deployed to:", moonLabsVesting.address);
+  // await moonLabsTokenLocker.deployed();
   // console.log("Referral contract deployed to:", moonLabsReferral.address);
+  // console.log("Whitelist contract deployed to:", moonLabsWhitelist.address);
+  // console.log("Locker contract deployed to:", moonLabsTokenLocker.address);
+
+  // setTimeout(async () => {
+  //   console.log("Verifying Referral contract...");
+  //   await hre.run("verify:verify", {
+  //     address: "0xab772a83061bc344b3976b3bc4fbbda59d6b5af6",
+  //   });
+  //   console.log("Done");
+  // }, 1);
+
+  // setTimeout(async () => {
+  //   console.log("Verifying Whitelist contract...");
+  //   await hre.run("verify:verify", {
+  //     address: "0x8c3c28941b44e509d6247e59304a43d099264dbd",
+  //     constructorArguments: ["0xaD5D813ab94a32bfF64175C73a1bF49D590bB511", "100000000000000000000"],
+  //   });
+  //   console.log("Done");
+  // }, 1);
+
+  setTimeout(async () => {
+    console.log("Verifying Locker contract...");
+    await hre.run("verify:verify", {
+      address: "0x1E5187Ec1A0FE62De508C1153F7e6dF7A8718368",
+    });
+    console.log("Done");
+  }, 1);
 }
 
 main();

@@ -1,8 +1,10 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-etherscan");
+require("hardhat-contract-sizer");
 require("@openzeppelin/hardhat-upgrades");
 require("hardhat-gas-reporter");
+require("hardhat-tracer");
 require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
@@ -20,7 +22,7 @@ module.exports = {
             // The number of runs specifies roughly how often
             // the deployed code will be executed across the
             // life-time of the contract.
-            runs: 2 ** 32 - 1,
+            runs: 5000,
           },
         },
       },
@@ -53,9 +55,13 @@ module.exports = {
       url: process.env.TESTNET_API,
       accounts: [process.env.PRIVATE_KEY],
     },
+    bsc: {
+      url: process.env.BSC_API,
+      accounts: [process.env.PRIVATE_KEY],
+    },
   },
   etherscan: {
-    apiKey: process.env.ETH_SCAN_API,
+    apiKey: process.env.BSC_SCAN_API,
   },
   gasReporter: {
     enabled: true,

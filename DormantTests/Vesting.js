@@ -46,7 +46,7 @@ describe("Deployment", async function () {
 
     // Deploy vesting contract
     const MoonLabsVesting = await ethers.getContractFactory("MoonLabsVesting");
-    const moonLabsVesting = await upgrades.deployProxy(MoonLabsVesting, [testToken.address, 30, 25, ethers.utils.parseEther(".1"), address1.address, moonLabsReferral.address, moonLabsWhitelist.address, router.address, 10, 10, ethers.utils.parseEther(".25")], {
+    const moonLabsVesting = await upgrades.deployProxy(MoonLabsVesting, [testToken.address, address1.address, moonLabsReferral.address, moonLabsWhitelist.address, router.address], {
       initializer: "initialize",
     });
     await moonLabsVesting.deployed();

@@ -7,6 +7,7 @@
  * ██║╚██╔╝██║██║   ██║██║   ██║██║╚██╗██║    ██║     ██╔══██║██╔══██╗╚════██║
  * ██║ ╚═╝ ██║╚██████╔╝╚██████╔╝██║ ╚████║    ███████╗██║  ██║██████╔╝███████║
  * ╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝    ╚══════╝╚═╝  ╚═╝╚═════╝ ╚══════╝
+ *
  * Moon Labs LLC reserves all rights on this code.
  * You may not, except otherwise with prior permission and express written consent by Moon Labs LLC, copy, download, print, extract, exploit,
  * adapt, edit, modify, republish, reproduce, rebroadcast, duplicate, distribute, or publicly display any of the content, information, or material
@@ -45,13 +46,13 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
   /*|| === STATE VARIABLES === ||*/
   int public index; /// Index keeps track of active referral codes
   string[] private reservedCodes; /// Reserved codes not bound to an address
-  address[] public moonLabsContracts; /// Array of verified Moon Labs contracts
 
   /*|| === MAPPINGS === ||*/
   mapping(address => string) private addressToCode;
   mapping(string => address) private codeToAddress;
   mapping(string => uint) private rewardsEarned; /// Rewards earned by code in WEI
   mapping(string => uint) private rewardsEarnedUSD; /// Rewards earned by code in USD
+  mapping(address => bool) public moonLabsContract;
 
   /*|| === EXTERNAL FUNCTIONS === ||*/
   /**
@@ -170,7 +171,7 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
    * @param _address address of the Moon Labs contract
    */
   function addMoonLabsContract(address _address) external onlyOwner {
-    moonLabsContracts.push(_address);
+    moonLabsContract[_address] = true;
   }
 
   /**
@@ -178,12 +179,7 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
    * @param _address address of the Moon Labs contract
    */
   function removeMoonLabsContract(address _address) external onlyOwner {
-    for (uint32 i = 0; i < moonLabsContracts.length; i++) {
-      if (_address == moonLabsContracts[i]) {
-        moonLabsContracts[i] = moonLabsContracts[moonLabsContracts.length - 1];
-        moonLabsContracts.pop();
-      }
-    }
+    moonLabsContract[_address] = false;
   }
 
   /**
@@ -192,13 +188,10 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
    * @param commission amount of eth to send to referral code owner
    */
   function addRewardsEarned(string calldata code, uint commission) external override {
-    for (uint32 i = 0; i < moonLabsContracts.length; i++) {
-      if (msg.sender == moonLabsContracts[i]) {
-        string memory _code = upper(code);
-        /// Add rewards to mapping
-        rewardsEarned[_code] += commission;
-      }
-    }
+    require(moonLabsContract[msg.sender], "Unauthorized Contract");
+    string memory _code = upper(code);
+    /// Add rewards to mapping
+    rewardsEarned[_code] += commission;
   }
 
   /**
@@ -207,13 +200,10 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
    * @param commission amount of USD to send to referral code owner
    */
   function addRewardsEarnedUSD(string calldata code, uint commission) external override {
-    for (uint32 i = 0; i < moonLabsContracts.length; i++) {
-      if (msg.sender == moonLabsContracts[i]) {
-        string memory _code = upper(code);
-        /// Add rewards to mapping
-        rewardsEarnedUSD[_code] += commission;
-      }
-    }
+    require(moonLabsContract[msg.sender], "Unauthorized Contract");
+    string memory _code = upper(code);
+    /// Add rewards to mapping
+    rewardsEarnedUSD[_code] += commission;
   }
 
   /**
@@ -262,7 +252,7 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
    * @notice Send all eth in contract to caller.
    */
   function claimETH() external onlyOwner {
-    (bool sent, bytes memory data) = (msg.sender).call{ value: address(this).balance }("");
+    (bool sent, ) = payable(msg.sender).call{ value: address(this).balance }("");
     require(sent, "Failed to send Ether");
   }
 

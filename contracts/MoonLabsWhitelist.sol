@@ -7,6 +7,7 @@
  * ██║╚██╔╝██║██║   ██║██║   ██║██║╚██╗██║    ██║     ██╔══██║██╔══██╗╚════██║
  * ██║ ╚═╝ ██║╚██████╔╝╚██████╔╝██║ ╚████║    ███████╗██║  ██║██████╔╝███████║
  * ╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝    ╚══════╝╚═╝  ╚═╝╚═════╝ ╚══════╝
+ * 
  * Moon Labs LLC reserves all rights on this code.
  * You may not, except otherwise with prior permission and express written consent by Moon Labs LLC, copy, download, print, extract, exploit,
  * adapt, edit, modify, republish, reproduce, rebroadcast, duplicate, distribute, or publicly display any of the content, information, or material
@@ -106,7 +107,7 @@ contract MoonLabsWhitelist is IMoonLabsWhitelist, Ownable {
    * @notice Send all eth in contract to caller.
    */
   function claimETH() external onlyOwner {
-    (bool sent, bytes memory data) = (msg.sender).call{ value: address(this).balance }("");
+    (bool sent, ) = payable(msg.sender).call{ value: address(this).balance }("");
     require(sent, "Failed to send Ether");
   }
 
