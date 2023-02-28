@@ -21,8 +21,8 @@
 /**
  * @title This is a contract used for creating whitelists for Moon Labs products
  * @author Moon Labs LLC
- * @notice This contracts intended purpose is for users to purchase whitelist for their desired tokens. Whitelisting a token allows for all fees on
- * related Moon Labs products to be waived. Whitelists can not be transfered from tokent to token.
+ * @notice  This contract's intended purpose is for users to purchase whitelists for their desired tokens. Whitelisting a token allows for all fees on
+ * related Moon Labs products to be waived. Whitelists may not be transferred from token to token.
  */
 
 pragma solidity ^0.8.17;

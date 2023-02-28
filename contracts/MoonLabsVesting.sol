@@ -21,9 +21,10 @@
 /**
  * @title A token vesting contract for NON-Rebasing ERC20 tokens
  * @author Moon Labs LLC
- * @notice This contract's intended purpose is for token owners to create token locks for future or current holders that are immutable by the lock
- * creator. There are no premature unlock conditions or lock extensions. To maximize gas efficiency, this contract is not suited to handle rebasing
- * tokens or tokens in which a wallets supply changes based on total supply.
+ * @notice This contract's intended purpose is for token owners to create ERC20 token locks for future or current holders that are immutable by the
+ * lock creator. Lock creators may choose to create standard or linear locks. Tokens locked in this contract remain locked until their respective
+ * unlock date without ANY exceptions. This contract is not suited to handle rebasing tokens or tokens in which a wallet's supply changes based on
+ * total supply.
  */
 
 pragma solidity ^0.8.17;

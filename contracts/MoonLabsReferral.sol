@@ -21,9 +21,9 @@
 /**
  * @title This is a contract used for creating and managing referral codes.
  * @author Moon Labs LLC
- * @notice This contract's intended purpose is to allow users to create referral codes for customers to use while purchasing Moon Labs products. There
- * may only be one referral code per address and one address per referral code. Code owners may check their commission earned via this contract.
- * Reserved codes are bound to no address and may not be used until bound to an address.
+ * @notice This contract's intended purpose is to allow users to create referral codes for customers to use while purchasing Moon Labs products.
+ * There may only be one referral code per address and one address per referral code. Code owners may check their commission earned via this
+ * contract. Reserved codes are bound to no address and may not be used until bound to an address.
  */
 
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -52,7 +52,7 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
   mapping(string => address) private codeToAddress;
   mapping(string => uint) private rewardsEarned; /// Rewards earned by code in WEI
   mapping(string => uint) private rewardsEarnedUSD; /// Rewards earned by code in USD
-  mapping(address => bool) public moonLabsContract;
+  mapping(address => bool) public moonLabsContract; /// Is address a Moon Labs address
 
   /*|| === EXTERNAL FUNCTIONS === ||*/
   /**

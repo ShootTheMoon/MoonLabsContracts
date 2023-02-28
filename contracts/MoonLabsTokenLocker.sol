@@ -21,10 +21,10 @@
 /**
  * @title A token locker contract for ERC20 tokens.
  * @author Moon Labs LLC
- * @notice This contract's intended purpose is to allow users to create token locks for ERC20 tokens. Lock creators may extend, transfer, add to, and
- * split locks. Lock creators may NOT unlock tokens prematurely for whatever reason. Tokens locked in this contract remain locked until their
- * respective unlock date without ANY exceptions. To maximize gas efficiency, this contract is not suited to handle rebasing tokens or tokens in
- * which a wallets supply changes based on total supply.
+ * @notice This contract's intended purpose is to allow users to create token locks for ERC20 tokens. Lock creators may extend, transfer, add to,
+ * and split locks. Lock creators may NOT unlock tokens prematurely for whatever reason. Lock creators may choose to create standard or linear
+ * locks. Tokens locked in this contract remain locked until their respective unlock date without ANY exceptions. This contract is not suited to
+ * handle rebasing tokens or tokens in which a wallet's supply changes based on total supply.
  */
 
 pragma solidity ^0.8.17;
