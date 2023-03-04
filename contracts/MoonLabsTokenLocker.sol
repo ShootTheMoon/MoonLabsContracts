@@ -92,7 +92,7 @@ contract MoonLabsTokenLocker is OwnableUpgradeable {
     address ownerAddress; /// Address of owner
     uint depositAmount; /// Total deposit amount
     uint currentAmount; /// Current tokens in lock
-    uint64 startDate; /// Date when tokens start to unlock, is Linear lock if !=0.
+    uint64 startDate; /// Date when tokens start to unlock, is a Linear lock if !=0.
     uint64 endDate; /// Date when all tokens are fully unlocked
   }
 
@@ -110,10 +110,10 @@ contract MoonLabsTokenLocker is OwnableUpgradeable {
 
   /*|| === EVENTS === ||*/
   event LockCreated(address creator, address token, uint64 numOfLocks, uint64 nonce);
-  event TokensWithdrawn(address owner, address token, uint amount, uint64 nonce);
-  event LockTransfered(address from, address to, uint64 nonce);
-  event LockRelocked(address owner, address token, uint64 nonce);
-  event LockSplit(address from, address to, uint64 nonce, uint64 newNonce);
+  event TokensWithdrawn(address owner, uint amount, uint64 nonce);
+  event LockTransferred(address from, address to, uint64 nonce);
+  event LockRelocked(address owner, uint amount, uint64 startTime, uint64 endTime, uint64 nonce);
+  event LockSplit(address from, address to, uint amount, uint64 nonce, uint64 newNonce);
 
   /*|| === EXTERNAL FUNCTIONS === ||*/
   /**  
@@ -122,7 +122,7 @@ contract MoonLabsTokenLocker is OwnableUpgradeable {
    * @param lock array of LockParams struct(s) containing:
    *    ownerAddress The address of the receiving wallet
    *    depositAmount Number of tokens in the lock instance
-   *    startDate Date when tokens start to unlock, is Linear lock if !=0.
+   *    startDate Date when tokens start to unlock, is a Linear lock if !=0.
    *    endDate Date when all tokens are fully unlocked
     @dev Since this lock is free, no ETH is added to the burn meter. This function supports tokens with a transfer tax, although not recommended due to potential customer confusion
   */
@@ -161,7 +161,7 @@ contract MoonLabsTokenLocker is OwnableUpgradeable {
    * @param lock array of LockParams struct(s) containing:
    *    ownerAddress The address of the receiving wallet
    *    depositAmount Number of tokens in the lock instance
-   *    startDate Date when tokens start to unlock, is Linear lock if !=0.
+   *    startDate Date when tokens start to unlock, is a Linear lock if !=0.
    *    endDate Date when all tokens are fully unlocked
    * @dev Since fees are not paid for in ETH, no ETH is added to the burn meter. This function supports tokens with a transfer tax, although not recommended due to potential customer confusion
    */
@@ -180,7 +180,7 @@ contract MoonLabsTokenLocker is OwnableUpgradeable {
     uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
     /// Transfer tokens from sender to contract
     transferTokensFrom(tokenAddress, msg.sender, totalDeposit + tokenFee);
-    uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
+    uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal - tokenFee;
 
     uint64 _nonce = nonce;
     /// Create a lock instance for every struct in the lock array
@@ -203,7 +203,7 @@ contract MoonLabsTokenLocker is OwnableUpgradeable {
    * @param lock array of LockParams struct(s) containing:
    *    ownerAddress The address of the receiving wallet
    *    depositAmount Number of tokens in the lock instance
-   *    startDate Date when tokens start to unlock, is Linear lock if !=0.
+   *    startDate Date when tokens start to unlock, is a Linear lock if !=0.
    *    endDate Date when all tokens are fully unlocked
    * @dev This function supports tokens with a transfer tax, although not recommended due to potential customer confusion
    */
@@ -244,7 +244,7 @@ contract MoonLabsTokenLocker is OwnableUpgradeable {
    * @param lock array of LockParams struct(s) containing:
    *    ownerAddress The address of the receiving wallet
    *    depositAmount Number of tokens in the lock instance
-   *    startDate Date when tokens start to unlock, is Linear lock if !=0.
+   *    startDate Date when tokens start to unlock, is a Linear lock if !=0.
    *    endDate Date when all tokens are fully unlocked
    * @param code Referral code used for discount
    * @dev This function supports tokens with a transfer tax, although not recommended due to potential customer confusion
@@ -309,7 +309,7 @@ contract MoonLabsTokenLocker is OwnableUpgradeable {
     /// Delete lock instance if current amount reaches zero
     if (lockInstance[_nonce].currentAmount <= 0) deleteLockInstance(_nonce);
 
-    emit TokensWithdrawn(msg.sender, tokenAddress, amount, _nonce);
+    emit TokensWithdrawn(msg.sender, amount, _nonce);
   }
 
   /**
@@ -320,6 +320,8 @@ contract MoonLabsTokenLocker is OwnableUpgradeable {
   function transferLockOwnership(uint64 _nonce, address newOwner) external {
     /// Check that sender is the lock owner
     require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
+    /// Revert self transfer
+    require(newOwner != msg.sender, "Self Transfer");
 
     /// Delete mapping from the old owner to nonce of lock instance and pop
     uint64[] storage withdrawArray = ownerToLock[msg.sender];
@@ -337,7 +339,7 @@ contract MoonLabsTokenLocker is OwnableUpgradeable {
     /// Map nonce of transferred lock to the new owner
     ownerToLock[newOwner].push(_nonce);
 
-    emit LockTransfered(msg.sender, newOwner, _nonce);
+    emit LockTransferred(msg.sender, newOwner, _nonce);
   }
 
   /**
@@ -382,7 +384,7 @@ contract MoonLabsTokenLocker is OwnableUpgradeable {
     /// Add to burn amount burn meter
     handleBurns(msg.value);
 
-    emit LockRelocked(msg.sender, tokenAddress, _nonce);
+    emit LockRelocked(msg.sender, amount, startTime, endTime, _nonce);
   }
 
   /**
@@ -406,6 +408,17 @@ contract MoonLabsTokenLocker is OwnableUpgradeable {
     /// Check for end date upper bounds
     require(endTime + lockInstance[_nonce].endDate < 10000000000, "End date");
 
+    if (amount > 0) {
+      uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
+      /// Transfer tokens from sender to contract
+      transferTokensFrom(tokenAddress, msg.sender, amount);
+      uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
+      lockInstance[_nonce].currentAmount += amountSent;
+      lockInstance[_nonce].depositAmount += amountSent;
+    }
+    if (startTime > 0) lockInstance[_nonce].startDate += startTime;
+    if (endTime > 0) lockInstance[_nonce].endDate += endTime;
+
     /// Check if token is not whitelisted
     if (!whitelistContract.getIsWhitelisted(tokenAddress)) {
       /// Calculate the token fee based on total tokens in lock
@@ -419,26 +432,16 @@ contract MoonLabsTokenLocker is OwnableUpgradeable {
       transferTokensTo(tokenAddress, feeCollector, tokenFee);
     }
 
-    if (amount > 0) {
-      uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
-      /// Transfer tokens from sender to contract
-      transferTokensFrom(tokenAddress, msg.sender, amount);
-      uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
-      lockInstance[_nonce].currentAmount += amountSent;
-      lockInstance[_nonce].depositAmount += amountSent;
-    }
-    if (startTime > 0) lockInstance[_nonce].startDate += startTime;
-    if (endTime > 0) lockInstance[_nonce].endDate += endTime;
-
-    emit LockRelocked(msg.sender, tokenAddress, _nonce);
+    emit LockRelocked(msg.sender, amount, startTime, endTime, _nonce);
   }
 
   /**
    * @notice Split a current lock into two separate locks amount determined by the sender. If not whitelisted, fees are in eth. This function supports both linear and standard locks.
+   * @param to address of split receiver
    * @param _nonce ID of desired lock instance
    * @param amount number of tokens sent to new lock
    */
-  function splitLockETH(address recipient, uint64 _nonce, uint amount) external payable {
+  function splitLockETH(address to, uint64 _nonce, uint amount) external payable {
     uint currentAmount = lockInstance[_nonce].currentAmount;
     uint depositAmount = lockInstance[_nonce].depositAmount;
     address tokenAddress = lockInstance[_nonce].tokenAddress;
@@ -461,7 +464,7 @@ contract MoonLabsTokenLocker is OwnableUpgradeable {
 
     /// To maintain linear lock integrity, the deposit amount must maintain proportional to the current amount
 
-    /// Convert amount to corresponding deposit amount and subtract from lock inital deposit
+    /// Convert amount to corresponding deposit amount and subtract from lock initial deposit
     lockInstance[_nonce].depositAmount -= MathUpgradeable.mulDiv(depositAmount, amount, currentAmount);
     /// Subtract amount from the current amount
     lockInstance[_nonce].currentAmount -= amount;
@@ -469,27 +472,26 @@ contract MoonLabsTokenLocker is OwnableUpgradeable {
     nonce++;
 
     /// Create a new lock instance and map to nonce
-    lockInstance[nonce] = LockInstance(tokenAddress, recipient, amount, MathUpgradeable.mulDiv(depositAmount, amount, currentAmount), lockInstance[_nonce].startDate, lockInstance[_nonce].endDate);
+    lockInstance[nonce] = LockInstance(tokenAddress, to, amount, MathUpgradeable.mulDiv(depositAmount, amount, currentAmount), lockInstance[_nonce].startDate, lockInstance[_nonce].endDate);
     /// Map token address to nonce
     tokenToLock[tokenAddress].push(nonce);
     /// Map owner address to nonce
-    ownerToLock[recipient].push(nonce);
+    ownerToLock[to].push(nonce);
 
     /// Add to burn amount burn meter
     handleBurns(msg.value);
 
-    emit LockSplit(msg.sender, recipient, _nonce, nonce);
+    emit LockSplit(msg.sender, to, amount, _nonce, nonce);
   }
 
   /**
    * @notice This function splits a current lock into two separate locks amount determined by the sender. If not whitelisted, fees are in % of tokens in the lock. This function supports both linear and standard locks.
-   * @param recipient address of split receiver
-   * @param recipient address of split receiver
+   * @param to address of split receiver
    * @param _nonce ID of desired lock instance
    * @param amount number of tokens sent to new lock
    * @dev tokens are deducted from the original lock
    */
-  function splitLockPercent(address recipient, uint64 _nonce, uint amount) external {
+  function splitLockPercent(address to, uint64 _nonce, uint amount) external {
     uint currentAmount = lockInstance[_nonce].currentAmount;
     uint depositAmount = lockInstance[_nonce].depositAmount;
     address tokenAddress = lockInstance[_nonce].tokenAddress;
@@ -514,7 +516,7 @@ contract MoonLabsTokenLocker is OwnableUpgradeable {
 
     /// To maintain linear lock integrity, the deposit amount must maintain proportional to the current amount
 
-    /// Convert amount to corresponding deposit amount and subtract from lock inital deposit
+    /// Convert amount to corresponding deposit amount and subtract from lock initial deposit
     lockInstance[_nonce].depositAmount -= MathUpgradeable.mulDiv(depositAmount, amount, currentAmount);
     /// Subtract amount from the current amount
     lockInstance[_nonce].currentAmount -= amount;
@@ -522,13 +524,13 @@ contract MoonLabsTokenLocker is OwnableUpgradeable {
     nonce++;
 
     /// Create a new lock instance and map to nonce
-    lockInstance[nonce] = LockInstance(tokenAddress, recipient, amount, MathUpgradeable.mulDiv(depositAmount, amount, currentAmount), lockInstance[_nonce].startDate, lockInstance[_nonce].endDate);
+    lockInstance[nonce] = LockInstance(tokenAddress, to, amount, MathUpgradeable.mulDiv(depositAmount, amount, currentAmount), lockInstance[_nonce].startDate, lockInstance[_nonce].endDate);
     /// Map token address to nonce
     tokenToLock[tokenAddress].push(nonce);
     /// Map owner address to nonce
-    ownerToLock[recipient].push(nonce);
+    ownerToLock[to].push(nonce);
 
-    emit LockSplit(msg.sender, recipient, _nonce, nonce);
+    emit LockSplit(msg.sender, to, amount, _nonce, nonce);
   }
 
   /**
@@ -713,7 +715,7 @@ contract MoonLabsTokenLocker is OwnableUpgradeable {
    * @param lock array of LockParams struct(s) containing:
    *    ownerAddress The address of the receiving wallet
    *    depositAmount Number of tokens in the lock instance
-   *    startDate Date when tokens start to unlock, is Linear lock if !=0.
+   *    startDate Date when tokens start to unlock, is a Linear lock if !=0.
    *    endDate Date when all tokens are fully unlocked
    */
   function createLockInstance(address tokenAddress, LockParams calldata lock, uint64 _nonce, uint amountSent, uint totalDeposit) private {

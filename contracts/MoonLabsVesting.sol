@@ -102,8 +102,8 @@ contract MoonLabsVesting is OwnableUpgradeable {
 
   /*|| === EVENTS === ||*/
   event LockCreated(address creator, address token, uint64 numOfLocks, uint64 nonce);
-  event TokensWithdrawn(address owner, address token, uint amount, uint64 nonce);
-  event LockTransfered(address from, address to, uint64 nonce);
+  event TokensWithdrawn(address owner, uint amount, uint64 nonce);
+  event LockTransferred(address from, address to, uint64 nonce);
 
   /*|| === EXTERNAL FUNCTIONS === ||*/
   /**  
@@ -170,7 +170,7 @@ contract MoonLabsVesting is OwnableUpgradeable {
     uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
     /// Transfer tokens from sender to contract
     transferTokensFrom(tokenAddress, msg.sender, totalDeposit + tokenFee);
-    uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
+    uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal - tokenFee;
 
     uint64 _nonce = nonce;
     /// Create a vesting instance for every struct in the lock array
@@ -298,7 +298,7 @@ contract MoonLabsVesting is OwnableUpgradeable {
     /// Delete vesting instance if withdrawn amount reaches deposit amount
     if (vestingInstance[_nonce].withdrawnAmount >= vestingInstance[_nonce].depositAmount) deleteVestingInstance(_nonce);
 
-    emit TokensWithdrawn(msg.sender, tokenAddress, amount, _nonce);
+    emit TokensWithdrawn(msg.sender, amount, _nonce);
   }
 
   /**
@@ -308,7 +308,10 @@ contract MoonLabsVesting is OwnableUpgradeable {
    */
   function transferVestingOwnership(uint64 _nonce, address newOwner) external {
     /// Check that sender is the withdraw owner of the lock
-    require(msg.sender == vestingInstance[_nonce].withdrawAddress, "Ownership");
+    require(vestingInstance[_nonce].withdrawAddress == msg.sender, "Ownership");
+    /// Revert self transfer
+    require(newOwner != msg.sender, "Self Transfer");
+
     /// Delete mapping from the old owner to nonce of vesting instance and pop
     uint64[] storage withdrawArray = withdrawToLock[msg.sender];
     for (uint64 i; i < withdrawArray.length; i++) {
@@ -325,7 +328,7 @@ contract MoonLabsVesting is OwnableUpgradeable {
     /// Map nonce of transferred lock to the new owner
     withdrawToLock[newOwner].push(_nonce);
 
-    emit LockTransfered(msg.sender, newOwner, _nonce);
+    emit LockTransferred(msg.sender, newOwner, _nonce);
   }
 
   /**
@@ -595,7 +598,7 @@ contract MoonLabsVesting is OwnableUpgradeable {
       /// Set time elapsed to time block
       timeElapsed = timeBlock;
     } else if (startDate < block.timestamp) {
-      /// Set time elapsed to the time elapse
+      /// Set time elapsed to the time elapsed
       timeElapsed = uint64(block.timestamp) - startDate;
     }
 

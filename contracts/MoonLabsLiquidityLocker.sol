@@ -13,7 +13,6 @@
  * adapt, edit, modify, republish, reproduce, rebroadcast, duplicate, distribute, or publicly display any of the content, information, or material
  * on this smart contract for non-personal or commercial purposes, except for any other use as permitted by the applicable copyright law.
  *
- * This is for ERC20 tokens and should NOT be used for Uniswap LP tokens or ANY other token protocol.
  *
  * Website: https://www.moonlabs.site/
  */
@@ -67,9 +66,9 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
   }
 
   /*|| === STATE VARIABLES === ||*/
-  uint public ethLockPrice; /// Price in WEI for each lock instance when paying for lock with ETH
+  uint public ethLockPrice; /// Price in WEI for each lock instance when paying for a lock with ETH
   uint public ethSplitPrice; /// Price in WEI for each lock instance when splitting lock with ETH
-  uint public ethRelockPrice; /// Price in WEI for each lock instance when relocking lock with ETH
+  uint public ethRelockPrice; /// Price in WEI for each lock instance when relocking a lock with ETH
   uint public burnThreshold; /// ETH in WEI when tokenToBurn should be bought and sent to DEAD address
   uint public burnMeter; /// Current ETH in WEI for buying and burning tokenToBurn
   address public feeCollector; /// Fee collection address for paying with token percent
@@ -107,14 +106,14 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
 
   /*|| === EVENTS === ||*/
   event LockCreated(address creator, address token, uint64 nonce);
-  event TokensWithdrawn(address owner, address token, uint amount, uint64 nonce);
-  event LockTransfered(address from, address to, uint64 nonce);
-  event LockRelocked(address owner, address token, uint64 nonce);
-  event LockSplit(address from, address to, uint64 nonce, uint64 newNonce);
+  event TokensWithdrawn(address owner, uint amount, uint64 nonce);
+  event LockTransferred(address from, address to, uint64 nonce);
+  event LockRelocked(address owner, uint amount, uint64 unlockDate, uint64 nonce);
+  event LockSplit(address from, address to, uint amount, uint64 nonce, uint64 newNonce);
 
   /*|| === EXTERNAL FUNCTIONS === ||*/
   /**  
-    @notice Create one or multiple lock instances for a single token with no fees. Only available for whitelisted tokens.
+   * @notice Create one or multiple lock instances for a single token with no fees. Only available for whitelisted tokens.
    * @param tokenAddress Contract address of the erc20 token
    * @param lock array of LockParams struct(s) containing:
    *    ownerAddress The address of the receiving wallet
@@ -163,7 +162,7 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
     uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
     /// Transfer tokens from sender to contract
     transferTokensFrom(tokenAddress, msg.sender, depositAmount + tokenFee);
-    uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
+    uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal - tokenFee;
 
     nonce++;
     createLockInstance(tokenAddress, lock, amountSent, depositAmount);
@@ -272,7 +271,7 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
     /// Delete lock instance if current amount reaches zero
     if (lockInstance[_nonce].currentAmount <= 0) deleteLockInstance(_nonce);
 
-    emit TokensWithdrawn(msg.sender, tokenAddress, amount, _nonce);
+    emit TokensWithdrawn(msg.sender, amount, _nonce);
   }
 
   /**
@@ -283,6 +282,8 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
   function transferLockOwnership(uint64 _nonce, address newOwner) external {
     /// Check that sender is the lock owner
     require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
+    /// Revert self transfer
+    require(newOwner != msg.sender, "Self Transfer");
 
     /// Delete mapping from the old owner to nonce of lock instance and pop
     uint64[] storage withdrawArray = ownerToLock[msg.sender];
@@ -300,7 +301,7 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
     /// Map nonce of transferred lock to the new owner
     ownerToLock[newOwner].push(_nonce);
 
-    emit LockTransfered(msg.sender, newOwner, _nonce);
+    emit LockTransferred(msg.sender, newOwner, _nonce);
   }
 
   /**
@@ -312,7 +313,7 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
   function relockETH(uint64 _nonce, uint amount, uint64 _unlockDate) external payable {
     address tokenAddress = lockInstance[_nonce].tokenAddress;
 
-    /// Check if token is whitelisted
+    /// Check if the token is whitelisted
     if (whitelistContract.getIsWhitelisted(tokenAddress)) {
       /// Check if msg value is 0
       require(msg.value == 0, "Incorrect Price");
@@ -342,7 +343,7 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
 
     handleBurns();
 
-    emit LockRelocked(msg.sender, tokenAddress, _nonce);
+    emit LockRelocked(msg.sender, amount, _unlockDate, _nonce);
   }
 
   /**
@@ -361,17 +362,6 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
     /// Check for end date upper bounds
     require(_unlockDate + lockInstance[_nonce].unlockDate < 10000000000, "End date");
 
-    /// Check if token is not whitelisted
-    if (whitelistContract.getIsWhitelisted(tokenAddress)) {
-      /// Calculate the token fee based on total tokens in lock
-      uint tokenFee = MathUpgradeable.mulDiv(lockInstance[_nonce].currentAmount, percentRelockPrice, 10000);
-      /// Deduct fee from token balance
-      lockInstance[_nonce].currentAmount -= tokenFee;
-      lockInstance[_nonce].depositAmount -= tokenFee;
-      /// Transfer token fees to the collector address
-      transferTokensTo(tokenAddress, feeCollector, tokenFee);
-    }
-
     if (amount > 0) {
       uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
       /// Transfer tokens from sender to contract
@@ -382,21 +372,33 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
     }
     if (_unlockDate > 0) lockInstance[_nonce].unlockDate += _unlockDate;
 
-    emit LockRelocked(msg.sender, tokenAddress, _nonce);
+    /// Check if the token is not whitelisted
+    if (whitelistContract.getIsWhitelisted(tokenAddress)) {
+      /// Calculate the token fee based on total tokens in lock
+      uint tokenFee = MathUpgradeable.mulDiv(lockInstance[_nonce].currentAmount, percentRelockPrice, 10000);
+      /// Deduct fee from token balance
+      lockInstance[_nonce].currentAmount -= tokenFee;
+      lockInstance[_nonce].depositAmount -= tokenFee;
+      /// Transfer token fees to the collector address
+      transferTokensTo(tokenAddress, feeCollector, tokenFee);
+    }
+
+    emit LockRelocked(msg.sender, amount, _unlockDate, _nonce);
   }
 
   /**
    * @notice Split a current lock into two separate locks amount determined by the sender. If not whitelisted, fees are in ETH. This function supports both linear and standard locks.
-   * @param recipient address of split receiver
+   * @param to address of the split receiver
    * @param _nonce ID of desired lock instance
    * @param amount number of tokens sent to new lock
+   * @param amount number of tokens sent to new lock
    */
-  function splitLockETH(address recipient, uint64 _nonce, uint amount) external payable {
+  function splitLockETH(address to, uint64 _nonce, uint amount) external payable {
     uint currentAmount = lockInstance[_nonce].currentAmount;
     uint depositAmount = lockInstance[_nonce].depositAmount;
     address tokenAddress = lockInstance[_nonce].tokenAddress;
 
-    /// Check if token is whitelisted
+    /// Check if the token is whitelisted
     if (whitelistContract.getIsWhitelisted(tokenAddress)) {
       /// Check if msg value is 0
       require(msg.value == 0, "Incorrect Price");
@@ -422,28 +424,28 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
     nonce++;
 
     /// Create a new lock instance and map to nonce
-    lockInstance[nonce] = LockInstance(tokenAddress, recipient, amount, MathUpgradeable.mulDiv(depositAmount, amount, currentAmount), lockInstance[_nonce].unlockDate);
+    lockInstance[nonce] = LockInstance(tokenAddress, to, amount, MathUpgradeable.mulDiv(depositAmount, amount, currentAmount), lockInstance[_nonce].unlockDate);
     /// Map token address to nonce
     tokenToLock[tokenAddress].push(nonce);
     /// Map owner address to nonce
-    ownerToLock[recipient].push(nonce);
+    ownerToLock[to].push(nonce);
 
     /// Add to burn amount burn meter
     burnMeter += (msg.value * burnPercent) / 100;
 
     handleBurns();
 
-    emit LockSplit(msg.sender, recipient, _nonce, nonce);
+    emit LockSplit(msg.sender, to, amount, _nonce, nonce);
   }
 
   /**
    * @notice This function splits a current lock into two separate locks amount determined by the sender. If not whitelisted, fees are in % of lp tokens in the lock.
-   * @param recipient address of split receiver
+   * @param to address of the split receiver
    * @param _nonce ID of desired lock instance
    * @param amount number of tokens sent to new lock
    * @dev tokens are deducted from the original lock
    */
-  function splitLockPercent(address recipient, uint64 _nonce, uint amount) external {
+  function splitLockPercent(address to, uint64 _nonce, uint amount) external {
     uint currentAmount = lockInstance[_nonce].currentAmount;
     uint depositAmount = lockInstance[_nonce].depositAmount;
     address tokenAddress = lockInstance[_nonce].tokenAddress;
@@ -455,7 +457,7 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
     /// Check that amount is not 0
     require(amount > 0, "Zero transfer");
 
-    /// Check if token is not whitelisted
+    /// Check if the token is not whitelisted
     if (!whitelistContract.getIsWhitelisted(tokenAddress)) {
       /// Calculate the token fee based on total tokens locked
       uint tokenFee = MathUpgradeable.mulDiv(currentAmount, percentRelockPrice, 10000);
@@ -468,7 +470,7 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
 
     /// To maintain linear lock integrity, the deposit amount must maintain proportional to the current amount
 
-    /// Convert amount to corresponding deposit amount and subtract from lock inital deposit
+    /// Convert amount to corresponding deposit amount and subtract from lock initial deposit
     lockInstance[_nonce].depositAmount -= MathUpgradeable.mulDiv(depositAmount, amount, currentAmount);
     /// Subtract amount from the current amount
     lockInstance[_nonce].currentAmount -= amount;
@@ -476,13 +478,13 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
     nonce++;
 
     /// Create a new lock instance and map to nonce
-    lockInstance[nonce] = LockInstance(tokenAddress, recipient, amount, MathUpgradeable.mulDiv(depositAmount, amount, currentAmount), lockInstance[_nonce].unlockDate);
+    lockInstance[nonce] = LockInstance(tokenAddress, to, amount, MathUpgradeable.mulDiv(depositAmount, amount, currentAmount), lockInstance[_nonce].unlockDate);
     /// Map token address to nonce
     tokenToLock[tokenAddress].push(nonce);
     /// Map owner address to nonce
-    ownerToLock[recipient].push(nonce);
+    ownerToLock[to].push(nonce);
 
-    emit LockSplit(msg.sender, recipient, _nonce, nonce);
+    emit LockSplit(msg.sender, to, amount, _nonce, nonce);
   }
 
   /**

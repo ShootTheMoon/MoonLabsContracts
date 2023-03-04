@@ -61,7 +61,7 @@ module.exports = {
     },
   },
   etherscan: {
-    apiKey: process.env.BSC_SCAN_API,
+    apiKey: process.env.ETH_SCAN_API,
   },
   gasReporter: {
     enabled: true,

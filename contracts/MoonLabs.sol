@@ -14,17 +14,22 @@ pragma solidity 0.8.17;
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract MoonLabs is ERC20, Ownable {
   /*|| === STATE VARIABLES === ||*/
   uint public launchDate;
-  address payable public marketingWallet;
+  uint public nftThreshold = 0.01 ether;
+  uint16 public nftIndex = 1;
+  uint public nftBalance;
+  address payable public treasuryWallet;
   address payable public teamWallet;
   address payable public liqWallet;
   address public immutable uniswapV2Pair;
   IUniswapV2Router02 public immutable uniswapV2Router;
+  IERC721 public immutable nftContract;
   bool private inSwapAndLiquify;
   bool public launched;
   BuyTax public buyTax;
@@ -34,38 +39,39 @@ contract MoonLabs is ERC20, Ownable {
   uint8 private _decimals = 9;
   string private _name = "Moon Labs";
   string private _symbol = "MLAB";
-  uint public numTokensSellForTax = 200000 * 10 ** _decimals;
+  uint public swapThreshold = 200000 * 10 ** _decimals;
   bool public taxSwap = true;
 
   /*|| === STRUCTS === ||*/
   struct BuyTax {
-    uint16 liquidityTax;
-    uint16 marketingTax;
-    uint16 teamTax;
-    uint16 burnTax;
-    uint16 totalTax;
+    uint8 liquidityTax;
+    uint8 treasuryTax;
+    uint8 teamTax;
+    uint8 burnTax;
+    uint8 nftTax;
+    uint8 totalTax;
   }
 
   struct SellTax {
-    uint16 liquidityTax;
-    uint16 marketingTax;
-    uint16 teamTax;
-    uint16 burnTax;
-    uint16 totalTax;
+    uint8 liquidityTax;
+    uint8 treasuryTax;
+    uint8 teamTax;
+    uint8 burnTax;
+    uint8 nftTax;
+    uint8 totalTax;
   }
 
   /*|| === MAPPINGS === ||*/
   mapping(address => bool) public excludedFromFee;
 
-  /*|| === EVENTS === ||*/
-  event SwapAndLiquify(uint tokensSwapped, uint ethReceived, uint tokensIntoLiqudity);
-
   /*|| === CONSTRUCTOR === ||*/
-  constructor(address payable _marketingWallet, address payable _teamWallet, address payable _liqWallet) ERC20(_name, _symbol) {
+  constructor(address payable _treasuryWallet, address payable _teamWallet, address payable _liqWallet, address nftAddress) ERC20(_name, _symbol) {
     _mint(msg.sender, (_supply * 10 ** _decimals)); /// Mint and send all tokens to deployer
-    marketingWallet = _marketingWallet;
+    treasuryWallet = _treasuryWallet;
     teamWallet = _teamWallet;
     liqWallet = _liqWallet;
+
+    nftContract = IERC721(nftAddress);
 
     IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
     uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory()).createPair(address(this), _uniswapV2Router.WETH()); /// Create uniswap pair
@@ -74,12 +80,12 @@ contract MoonLabs is ERC20, Ownable {
 
     excludedFromFee[address(uniswapV2Router)] = true;
     excludedFromFee[msg.sender] = true;
-    excludedFromFee[marketingWallet] = true;
+    excludedFromFee[treasuryWallet] = true;
     excludedFromFee[teamWallet] = true;
     excludedFromFee[liqWallet] = true;
 
-    buyTax = BuyTax(1, 2, 1, 0, 4);
-    sellTax = SellTax(1, 2, 1, 0, 4);
+    buyTax = BuyTax(10, 10, 10, 10, 20, 60);
+    sellTax = SellTax(10, 10, 10, 10, 20, 60);
   }
 
   /*|| === MODIFIERS === ||*/
@@ -102,9 +108,13 @@ contract MoonLabs is ERC20, Ownable {
     launchDate = block.timestamp;
   }
 
-  function setMarketingWallet(address payable _marketingWallet) external onlyOwner {
-    require(_marketingWallet != address(0), "Address cannot be 0 address");
-    marketingWallet = _marketingWallet;
+  function setNftThreshold(uint _nftThreshold) external onlyOwner {
+    nftThreshold = _nftThreshold;
+  }
+
+  function setTreasuryWallet(address payable _treasuryWallet) external onlyOwner {
+    require(_treasuryWallet != address(0), "Address cannot be 0 address");
+    treasuryWallet = _treasuryWallet;
   }
 
   function setTeamWallet(address payable _teamWallet) external onlyOwner {
@@ -129,20 +139,20 @@ contract MoonLabs is ERC20, Ownable {
     taxSwap = _taxSwap;
   }
 
-  function setBuyTax(uint16 liquidityTax, uint16 marketingTax, uint16 teamTax, uint16 burnTax) external onlyOwner {
-    uint16 totalTax = liquidityTax + marketingTax + teamTax + burnTax;
-    require(totalTax <= 10, "ERC20: total tax must not be greater than 10");
-    buyTax = BuyTax(liquidityTax, marketingTax, teamTax, burnTax, totalTax);
+  function setBuyTax(uint8 liquidityTax, uint8 treasuryTax, uint8 teamTax, uint8 burnTax) external onlyOwner {
+    uint8 totalTax = liquidityTax + treasuryTax + teamTax + burnTax + 2;
+    require(totalTax <= 12, "ERC20: total tax must not be greater than 10");
+    buyTax = BuyTax(liquidityTax * 10, treasuryTax * 10, teamTax * 10, burnTax * 10, 2 * 10, totalTax * 10);
   }
 
-  function setSellTax(uint16 liquidityTax, uint16 marketingTax, uint16 teamTax, uint16 burnTax) external onlyOwner {
-    uint16 totalTax = liquidityTax + marketingTax + teamTax + burnTax;
-    require(totalTax <= 10, "ERC20: total tax must not be greater than 10");
-    sellTax = SellTax(liquidityTax, marketingTax, teamTax, burnTax, totalTax);
+  function setSellTax(uint8 liquidityTax, uint8 treasuryTax, uint8 teamTax, uint8 burnTax) external onlyOwner {
+    uint8 totalTax = liquidityTax + treasuryTax + teamTax + burnTax + 2;
+    require(totalTax <= 12, "ERC20: total tax must not be greater than 10");
+    sellTax = SellTax(liquidityTax * 10, treasuryTax * 10, teamTax * 10, burnTax * 10, 2 * 10, totalTax * 10);
   }
 
-  function setTokensToSellForTax(uint _numTokensSellForTax) external onlyOwner {
-    numTokensSellForTax = _numTokensSellForTax;
+  function setTokensToSellForTax(uint _swapThreshold) external onlyOwner {
+    swapThreshold = _swapThreshold;
   }
 
   /*|| === INTERNAL FUNCTIONS === ||*/
@@ -155,32 +165,26 @@ contract MoonLabs is ERC20, Ownable {
     if ((from == uniswapV2Pair || to == uniswapV2Pair) && !inSwapAndLiquify) {
       /// On sell and if tax swap enabled
       if (to == uniswapV2Pair && taxSwap) {
-        uint contractTokenBalance = balanceOf(address(this));
         /// If the contract balance reaches sell threshold
-        if (contractTokenBalance >= numTokensSellForTax) {
-          uint16 totalTokenTax = buyTax.totalTax + sellTax.totalTax;
-          uint16 marketingTax = buyTax.marketingTax + sellTax.marketingTax;
-          uint16 teamTax = buyTax.teamTax + sellTax.teamTax;
+        if (balanceOf(address(this)) >= swapThreshold) {
+          /// Perform tax swap
+          _swapAndDistribute();
+        }
+      }
 
-          uint liquidityTokenCut = (numTokensSellForTax * (buyTax.liquidityTax + sellTax.liquidityTax)) / totalTokenTax;
-          uint burnTokenCut;
+      /// Check if nft threshold is met
+      if (nftBalance >= nftThreshold) {
+        /// Send eth to index holder
+        (bool sent, ) = payable(nftContract.ownerOf(nftIndex)).call{ value: nftThreshold }("");
+        /// Check if eth sent
+        if (sent) {
+          nftBalance -= nftThreshold;
+        }
 
-          /// Add tokens to lp
-          _swapAndLiquify(liquidityTokenCut);
-
-          /// If burns are enabled
-          if (buyTax.burnTax != 0 || sellTax.burnTax != 0) {
-            burnTokenCut = (numTokensSellForTax * (buyTax.burnTax + sellTax.burnTax)) / totalTokenTax;
-            /// Send tokens to dead address
-            super._transfer(address(this), address(0xdead), burnTokenCut);
-          }
-
-          /// Swap marketing and team tokens for ETH
-          _swapTokens(numTokensSellForTax - liquidityTokenCut - burnTokenCut);
-
-          /// Distribute to corresponding wallets
-          (marketingWallet).call{ value: (address(this).balance * marketingTax) / (marketingTax + teamTax) }("");
-          (teamWallet).call{ value: address(this).balance }("");
+        if (nftIndex > 500) {
+          nftIndex++;
+        } else {
+          nftIndex = 1;
         }
       }
 
@@ -197,7 +201,7 @@ contract MoonLabs is ERC20, Ownable {
         } else if (from == uniswapV2Pair) {
           fees = buyTax.totalTax;
         }
-        uint tokenFees = (amount * fees) / 100;
+        uint tokenFees = (amount * fees) / 1000;
         transferAmount -= tokenFees;
         super._transfer(from, address(this), tokenFees);
       }
@@ -219,19 +223,36 @@ contract MoonLabs is ERC20, Ownable {
     uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(tokenAmount, 0, path, address(this), block.timestamp);
   }
 
-  function _swapAndLiquify(uint liquidityTokenCut) private lockTheSwap {
-    uint ethHalf = (liquidityTokenCut / 2);
-    uint tokenHalf = (liquidityTokenCut - ethHalf);
+  function _swapAndDistribute() private lockTheSwap {
+    uint8 totalTokenTax = buyTax.totalTax + sellTax.totalTax;
+    uint8 burnTax = buyTax.burnTax + sellTax.burnTax;
+    uint8 liquidityTax = buyTax.liquidityTax + sellTax.liquidityTax;
 
-    uint balanceBefore = address(this).balance;
+    uint liquidityTokenCut = ((swapThreshold * liquidityTax) / totalTokenTax) / 2;
+    uint burnTokenCut;
 
-    _swapTokens(ethHalf);
+    /// If burns are enabled
+    if (buyTax.burnTax != 0 || sellTax.burnTax != 0) {
+      burnTokenCut = (swapThreshold * burnTax) / totalTokenTax;
+      /// Send tokens to dead address
+      super._transfer(address(this), address(0xdead), burnTokenCut);
+    }
 
-    uint balanceAfter = (address(this).balance - balanceBefore);
+    _swapTokens(swapThreshold - liquidityTokenCut - burnTokenCut);
 
-    _addLiquidity(tokenHalf, balanceAfter);
+    uint ethBalance = address(this).balance;
 
-    emit SwapAndLiquify(ethHalf, balanceAfter, tokenHalf);
+    uint totalEthFee = (totalTokenTax - (liquidityTax / 2) - burnTax);
+
+    /// Distribute to team and treasury
+    (treasuryWallet).call{ value: (ethBalance * buyTax.treasuryTax + sellTax.treasuryTax) / totalEthFee }("");
+    (teamWallet).call{ value: (ethBalance * buyTax.teamTax + sellTax.teamTax) / totalEthFee }("");
+
+    /// Add ETH to nft balance
+    nftBalance += (ethBalance * buyTax.nftTax + sellTax.nftTax) / totalEthFee;
+
+    /// Add tokens to liquidity
+    _addLiquidity((liquidityTokenCut), ((ethBalance * liquidityTax) / totalEthFee) / 2);
   }
 
   function _addLiquidity(uint tokenAmount, uint ethAmount) private lockTheSwap {

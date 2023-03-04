@@ -7,7 +7,7 @@
  * ██║╚██╔╝██║██║   ██║██║   ██║██║╚██╗██║    ██║     ██╔══██║██╔══██╗╚════██║
  * ██║ ╚═╝ ██║╚██████╔╝╚██████╔╝██║ ╚████║    ███████╗██║  ██║██████╔╝███████║
  * ╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝    ╚══════╝╚═╝  ╚═╝╚═════╝ ╚══════╝
- * 
+ *
  * Moon Labs LLC reserves all rights on this code.
  * You may not, except otherwise with prior permission and express written consent by Moon Labs LLC, copy, download, print, extract, exploit,
  * adapt, edit, modify, republish, reproduce, rebroadcast, duplicate, distribute, or publicly display any of the content, information, or material
@@ -57,8 +57,7 @@ contract MoonLabsWhitelist is IMoonLabsWhitelist, Ownable {
   address public usdAddress; /// Address of desired USD token
   uint32 public codeDiscount; /// Discount in the percentage applied to the customer when using referral code, represented in 10s
   uint32 public codeCommission; /// Percentage of each lock purchase sent to referral code owner, represented in 10s
-  uint32 public burnPercent = 30; /// Percent of each transaction sent to burnMeter, represented in 10s
-  IERC20 public usdContract;
+  IERC20 public usdContract; /// Select USD contract
   IMoonLabsReferral public referralContract; /// Moon Labs referral contract
 
   /*|| === MAPPINGS === ||*/
@@ -72,6 +71,7 @@ contract MoonLabsWhitelist is IMoonLabsWhitelist, Ownable {
   function purchaseWhitelist(address _address) external {
     require(!getIsWhitelisted(_address), "Token already whitelisted");
     require(usdContract.balanceOf(msg.sender) >= costUSD, "Insignificant balance");
+
     usdContract.transferFrom(msg.sender, address(this), costUSD);
     /// Add token to global whitelist
     tokenToWhitelist[_address] = true;
@@ -82,10 +82,11 @@ contract MoonLabsWhitelist is IMoonLabsWhitelist, Ownable {
    * @param _address Token address to be whitelisted
    * @param code Referral code
    */
-  function purchaseWhitelistWhiteCode(address _address, string calldata code) external {
+  function purchaseWhitelistWithCode(address _address, string calldata code) external {
     require(!getIsWhitelisted(_address), "Token already whitelisted");
     /// Check for referral valid code
     require(referralContract.checkIfActive(code), "Invalid code");
+    /// Check for significant balance
     require(usdContract.balanceOf(msg.sender) >= costUSD - (costUSD * codeDiscount) / 100, "Insignificant balance");
     usdContract.transferFrom(msg.sender, address(this), (costUSD * codeDiscount) / 100);
     /// Distribute commission
@@ -98,9 +99,18 @@ contract MoonLabsWhitelist is IMoonLabsWhitelist, Ownable {
    * @notice Add to whitelist without fee, onlyOwner function.
    * @param _address Token address to be whitelisted
    */
-  function ownerWhitelist(address _address) external onlyOwner {
+  function ownerWhitelistAdd(address _address) external onlyOwner {
     /// Add token to global whitelist
     tokenToWhitelist[_address] = true;
+  }
+
+  /**
+   * @notice Remove from whitelist, onlyOwner function.
+   * @param _address Token address to be removed from whitelist
+   */
+  function ownerWhitelistRemove(address _address) external onlyOwner {
+    /// Add token to global whitelist
+    tokenToWhitelist[_address] = false;
   }
 
   /**
@@ -109,6 +119,13 @@ contract MoonLabsWhitelist is IMoonLabsWhitelist, Ownable {
   function claimETH() external onlyOwner {
     (bool sent, ) = payable(msg.sender).call{ value: address(this).balance }("");
     require(sent, "Failed to send Ether");
+  }
+
+  /**
+   * @notice Send all USD in contract to caller.
+   */
+  function claimUSD() external onlyOwner {
+    usdContract.transferFrom(address(this), msg.sender, usdContract.balanceOf(address(this)));
   }
 
   /*|| === PUBLIC FUNCTIONS === ||*/
