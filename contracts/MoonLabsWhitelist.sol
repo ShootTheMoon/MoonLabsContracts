@@ -25,11 +25,12 @@
  * related Moon Labs products to be waived. Whitelists may not be transferred from token to token.
  */
 
-pragma solidity ^0.8.17;
+pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "./IDEXRouter.sol";
 
 interface IMoonLabsReferral {
@@ -44,20 +45,24 @@ interface IMoonLabsWhitelist {
   function getIsWhitelisted(address _address) external view returns (bool);
 }
 
-contract MoonLabsWhitelist is IMoonLabsWhitelist, Ownable {
-  constructor(address _usdAddress, uint _costUSD) {
+contract MoonLabsWhitelist is Initializable, IMoonLabsWhitelist, OwnableUpgradeable {
+  using SafeERC20Upgradeable for IERC20Upgradeable;
+
+  function initialize(address _usdAddress, uint _costUSD) public initializer {
+    __Ownable_init();
     usdAddress = _usdAddress;
     costUSD = _costUSD;
-    usdContract = IERC20(_usdAddress);
+    usdContract = IERC20Upgradeable(_usdAddress);
+    codeDiscount = 10;
+    codeCommission = 10;
   }
 
   /*|| === STATE VARIABLES === ||*/
-  uint public nonce; /// Number of tokens whitelisted
   uint public costUSD; /// Cost in USD
   address public usdAddress; /// Address of desired USD token
   uint32 public codeDiscount; /// Discount in the percentage applied to the customer when using referral code, represented in 10s
   uint32 public codeCommission; /// Percentage of each lock purchase sent to referral code owner, represented in 10s
-  IERC20 public usdContract; /// Select USD contract
+  IERC20Upgradeable public usdContract; /// Select USD contract
   IMoonLabsReferral public referralContract; /// Moon Labs referral contract
 
   /*|| === MAPPINGS === ||*/
@@ -72,7 +77,7 @@ contract MoonLabsWhitelist is IMoonLabsWhitelist, Ownable {
     require(!getIsWhitelisted(_address), "Token already whitelisted");
     require(usdContract.balanceOf(msg.sender) >= costUSD, "Insignificant balance");
 
-    usdContract.transferFrom(msg.sender, address(this), costUSD);
+    usdContract.safeTransferFrom(msg.sender, address(this), costUSD);
     /// Add token to global whitelist
     tokenToWhitelist[_address] = true;
   }
@@ -88,15 +93,16 @@ contract MoonLabsWhitelist is IMoonLabsWhitelist, Ownable {
     require(referralContract.checkIfActive(code), "Invalid code");
     /// Check for significant balance
     require(usdContract.balanceOf(msg.sender) >= costUSD - (costUSD * codeDiscount) / 100, "Insignificant balance");
-    usdContract.transferFrom(msg.sender, address(this), (costUSD * codeDiscount) / 100);
-    /// Distribute commission
+    /// Transfer tokens from caller to contract
+    usdContract.safeTransferFrom(msg.sender, address(this), costUSD - (costUSD * codeDiscount) / 100);
+    /// Distribute commission to code owner
     distributeCommission(code, (costUSD * codeCommission) / 100);
     /// Add token to global whitelist
     tokenToWhitelist[_address] = true;
   }
 
   /**
-   * @notice Add to whitelist without fee, onlyOwner function.
+   * @notice Add to whitelist without fee. Owner only function.
    * @param _address Token address to be whitelisted
    */
   function ownerWhitelistAdd(address _address) external onlyOwner {
@@ -105,7 +111,7 @@ contract MoonLabsWhitelist is IMoonLabsWhitelist, Ownable {
   }
 
   /**
-   * @notice Remove from whitelist, onlyOwner function.
+   * @notice Remove from whitelist. Owner only function.
    * @param _address Token address to be removed from whitelist
    */
   function ownerWhitelistRemove(address _address) external onlyOwner {
@@ -114,7 +120,33 @@ contract MoonLabsWhitelist is IMoonLabsWhitelist, Ownable {
   }
 
   /**
-   * @notice Send all eth in contract to caller.
+   * @notice Set the cost of each whitelist purchase. Owner only function
+   * @param _costUSD Cost per whitelist
+   */
+  function setCostUSD(uint _costUSD) external onlyOwner {
+    costUSD = _costUSD;
+  }
+
+  /**
+   * @notice Set the percentage of ETH per lock discounted on code use. Owner only function.
+   * @param _codeDiscount Percentage represented in 10s
+   */
+  function setCodeDiscount(uint8 _codeDiscount) external onlyOwner {
+    require(_codeDiscount < 100, "Percentage ceiling");
+    codeDiscount = _codeDiscount;
+  }
+
+  /**
+   * @notice Set the percentage of ETH per lock distributed to the code owner. Owner only function.
+   * @param _codeCommission Percentage represented in 10s
+   */
+  function setCodeCommission(uint8 _codeCommission) external onlyOwner {
+    require(_codeCommission < 100, "Percentage ceiling");
+    codeCommission = _codeCommission;
+  }
+
+  /**
+   * @notice Send all eth in contract to caller. Owner only function.
    */
   function claimETH() external onlyOwner {
     (bool sent, ) = payable(msg.sender).call{ value: address(this).balance }("");
@@ -122,10 +154,10 @@ contract MoonLabsWhitelist is IMoonLabsWhitelist, Ownable {
   }
 
   /**
-   * @notice Send all USD in contract to caller.
+   * @notice Send all USD in contract to caller. Owner only function.
    */
   function claimUSD() external onlyOwner {
-    usdContract.transferFrom(address(this), msg.sender, usdContract.balanceOf(address(this)));
+    usdContract.safeTransferFrom(address(this), msg.sender, usdContract.balanceOf(address(this)));
   }
 
   /*|| === PUBLIC FUNCTIONS === ||*/
@@ -145,9 +177,16 @@ contract MoonLabsWhitelist is IMoonLabsWhitelist, Ownable {
    * @param commission Amount in USD tokens to be distributed
    */
   function distributeCommission(string calldata code, uint commission) private {
+    /// Get balance before sending tokens
+    uint previousBal = usdContract.balanceOf(address(this));
+
     /// Send USD to referral code owner
-    usdContract.transfer(referralContract.getAddressByCode(code), commission);
+    usdContract.safeTransfer(referralContract.getAddressByCode(code), commission);
+
+    /// Calculate amount sent based off before and after balance
+    uint amountSent = usdContract.balanceOf(address(this)) - previousBal;
+
     /// Log rewards in the referral contract
-    referralContract.addRewardsEarnedUSD(code, commission);
+    referralContract.addRewardsEarnedUSD(code, amountSent);
   }
 }

@@ -22,7 +22,7 @@ module.exports = {
             // The number of runs specifies roughly how often
             // the deployed code will be executed across the
             // life-time of the contract.
-            runs: 5000,
+            runs: 3000,
           },
         },
       },

@@ -99,6 +99,36 @@
       "address": "0x22a343beed84934D1ABBA410bA25a3946de90604",
       "txHash": "0x95857b8047eea66e3986e17558626a4523f5bd8b6a57e2b6b61e3d148576251e",
       "kind": "transparent"
+    },
+    {
+      "address": "0x365EFAb7B02376983b86336E5af91d033c7edA6a",
+      "txHash": "0xfcb5720a08a1b36bd91d2ec4a9f1c7e0bb4cbcf1dbd93d184c224e28df4fcaa2",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x90c8703DD84021EF9aAc2A49cfb894FEDdFDA9a2",
+      "txHash": "0x1d2fbf45611853aabad6a52794abb5cb684d058327c919c7e13a1f3fba9c4f9a",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xaBb7Cc1d341883d464600d6905c9765816d7F6Ae",
+      "txHash": "0x8e651ab4c2ac401ce08b86a28c07ffe5196d65e5dde7252914eda21eeb2c64be",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x04A1baF88361c87AF85c206aeeC87531558D3247",
+      "txHash": "0xed398d620a9ab0de2fce1082cce2c8cbcdd19c4f4d034c936ca63dd20414f027",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xfcDfDa54cf3d591CFDfB8348481172420F5c6257",
+      "txHash": "0xf2efc6fdf82b017a804257ae16bf637b52035077ce3870e3ebc7c80bba99b0ae",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x9Dc4d524dc4db1145406f333F8B82f9010e31C3d",
+      "txHash": "0x45c89949892788ecccb3d3ad257bb9f45b487a731ac4b1bfd1bf5027c32433eb",
+      "kind": "transparent"
     }
   ],
   "impls": {
@@ -4500,6 +4530,1626 @@
               }
             ],
             "numberOfBytes": "160"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    },
+    "533647d989091f41e700c943a5a1cce047a78da4a62f6838b7caca13f407fbc5": {
+      "address": "0xaCa258b334D5968bFeC4931D0f8D89772b46EBc5",
+      "txHash": "0x55fe32e14bb33574daa46e007fa91ee37d70589c698d14253cab371bf6c7324e",
+      "layout": {
+        "solcVersion": "0.8.17",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:67"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\utils\\ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:94"
+          },
+          {
+            "label": "ethLockPrice",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:78"
+          },
+          {
+            "label": "ethSplitPrice",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:79"
+          },
+          {
+            "label": "ethRelockPrice",
+            "offset": 0,
+            "slot": "103",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:80"
+          },
+          {
+            "label": "burnThreshold",
+            "offset": 0,
+            "slot": "104",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:81"
+          },
+          {
+            "label": "burnMeter",
+            "offset": 0,
+            "slot": "105",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:82"
+          },
+          {
+            "label": "feeCollector",
+            "offset": 0,
+            "slot": "106",
+            "type": "t_address",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:82"
+          },
+          {
+            "label": "nonce",
+            "offset": 20,
+            "slot": "106",
+            "type": "t_uint64",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:83"
+          },
+          {
+            "label": "codeDiscount",
+            "offset": 28,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:83"
+          },
+          {
+            "label": "codeCommission",
+            "offset": 29,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:85"
+          },
+          {
+            "label": "burnPercent",
+            "offset": 30,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:87"
+          },
+          {
+            "label": "percentLockPrice",
+            "offset": 31,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:89"
+          },
+          {
+            "label": "percentSplitPrice",
+            "offset": 0,
+            "slot": "107",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:92"
+          },
+          {
+            "label": "percentRelockPrice",
+            "offset": 1,
+            "slot": "107",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:95"
+          },
+          {
+            "label": "tokenToBurn",
+            "offset": 2,
+            "slot": "107",
+            "type": "t_contract(IERC20Upgradeable)378",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:97"
+          },
+          {
+            "label": "routerContract",
+            "offset": 0,
+            "slot": "108",
+            "type": "t_contract(IDEXRouter)6756",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:100"
+          },
+          {
+            "label": "referralContract",
+            "offset": 0,
+            "slot": "109",
+            "type": "t_contract(IMoonLabsReferral)11443",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:103"
+          },
+          {
+            "label": "whitelistContract",
+            "offset": 0,
+            "slot": "110",
+            "type": "t_contract(IMoonLabsWhitelist)11451",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:106"
+          },
+          {
+            "label": "ownerToLock",
+            "offset": 0,
+            "slot": "111",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:119"
+          },
+          {
+            "label": "withdrawToLock",
+            "offset": 0,
+            "slot": "112",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:120"
+          },
+          {
+            "label": "tokenToLock",
+            "offset": 0,
+            "slot": "113",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:123"
+          },
+          {
+            "label": "lockInstance",
+            "offset": 0,
+            "slot": "114",
+            "type": "t_mapping(t_uint64,t_struct(LockInstance)11615_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:124"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_array(t_uint64)dyn_storage": {
+            "label": "uint64[]",
+            "numberOfBytes": "32"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_contract(IDEXRouter)6756": {
+            "label": "contract IDEXRouter",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IERC20Upgradeable)378": {
+            "label": "contract IERC20Upgradeable",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IMoonLabsReferral)11443": {
+            "label": "contract IMoonLabsReferral",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IMoonLabsWhitelist)11451": {
+            "label": "contract IMoonLabsWhitelist",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_address,t_array(t_uint64)dyn_storage)": {
+            "label": "mapping(address => uint64[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint64,t_struct(LockInstance)11615_storage)": {
+            "label": "mapping(uint64 => struct MoonLabsTokenLocker.LockInstance)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(LockInstance)11615_storage": {
+            "label": "struct MoonLabsTokenLocker.LockInstance",
+            "members": [
+              {
+                "label": "tokenAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "ownerAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "withdrawAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "depositAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "currentAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "startDate",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "endDate",
+                "type": "t_uint64",
+                "offset": 8,
+                "slot": "5"
+              }
+            ],
+            "numberOfBytes": "192"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    },
+    "43d5e2af66201d663d08566f57ea54ef6fc0ed2274f2f91c4c886eedcd066bb0": {
+      "address": "0x979B5a9d585C44932AaAFe96520594400902959d",
+      "txHash": "0xc5a2475fe1d38df266866c6ff3d088773d9e8d60b7f109b92ec199bc122c48f5",
+      "layout": {
+        "solcVersion": "0.8.17",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:67"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\utils\\ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:94"
+          },
+          {
+            "label": "ethLockPrice",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:78"
+          },
+          {
+            "label": "ethSplitPrice",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:79"
+          },
+          {
+            "label": "ethRelockPrice",
+            "offset": 0,
+            "slot": "103",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:80"
+          },
+          {
+            "label": "burnThreshold",
+            "offset": 0,
+            "slot": "104",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:81"
+          },
+          {
+            "label": "burnMeter",
+            "offset": 0,
+            "slot": "105",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:82"
+          },
+          {
+            "label": "feeCollector",
+            "offset": 0,
+            "slot": "106",
+            "type": "t_address",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:82"
+          },
+          {
+            "label": "nonce",
+            "offset": 20,
+            "slot": "106",
+            "type": "t_uint64",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:83"
+          },
+          {
+            "label": "codeDiscount",
+            "offset": 28,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:83"
+          },
+          {
+            "label": "codeCommission",
+            "offset": 29,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:85"
+          },
+          {
+            "label": "burnPercent",
+            "offset": 30,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:87"
+          },
+          {
+            "label": "percentLockPrice",
+            "offset": 31,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:89"
+          },
+          {
+            "label": "percentSplitPrice",
+            "offset": 0,
+            "slot": "107",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:92"
+          },
+          {
+            "label": "percentRelockPrice",
+            "offset": 1,
+            "slot": "107",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:95"
+          },
+          {
+            "label": "tokenToBurn",
+            "offset": 2,
+            "slot": "107",
+            "type": "t_contract(IERC20Upgradeable)378",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:97"
+          },
+          {
+            "label": "routerContract",
+            "offset": 0,
+            "slot": "108",
+            "type": "t_contract(IDEXRouter)6756",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:100"
+          },
+          {
+            "label": "referralContract",
+            "offset": 0,
+            "slot": "109",
+            "type": "t_contract(IMoonLabsReferral)11443",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:103"
+          },
+          {
+            "label": "whitelistContract",
+            "offset": 0,
+            "slot": "110",
+            "type": "t_contract(IMoonLabsWhitelist)11451",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:106"
+          },
+          {
+            "label": "ownerToLock",
+            "offset": 0,
+            "slot": "111",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:119"
+          },
+          {
+            "label": "withdrawToLock",
+            "offset": 0,
+            "slot": "112",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:120"
+          },
+          {
+            "label": "tokenToLock",
+            "offset": 0,
+            "slot": "113",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:123"
+          },
+          {
+            "label": "lockInstance",
+            "offset": 0,
+            "slot": "114",
+            "type": "t_mapping(t_uint64,t_struct(LockInstance)11615_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:124"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_array(t_uint64)dyn_storage": {
+            "label": "uint64[]",
+            "numberOfBytes": "32"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_contract(IDEXRouter)6756": {
+            "label": "contract IDEXRouter",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IERC20Upgradeable)378": {
+            "label": "contract IERC20Upgradeable",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IMoonLabsReferral)11443": {
+            "label": "contract IMoonLabsReferral",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IMoonLabsWhitelist)11451": {
+            "label": "contract IMoonLabsWhitelist",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_address,t_array(t_uint64)dyn_storage)": {
+            "label": "mapping(address => uint64[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint64,t_struct(LockInstance)11615_storage)": {
+            "label": "mapping(uint64 => struct MoonLabsTokenLocker.LockInstance)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(LockInstance)11615_storage": {
+            "label": "struct MoonLabsTokenLocker.LockInstance",
+            "members": [
+              {
+                "label": "tokenAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "ownerAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "withdrawAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "depositAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "currentAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "startDate",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "endDate",
+                "type": "t_uint64",
+                "offset": 8,
+                "slot": "5"
+              }
+            ],
+            "numberOfBytes": "192"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    },
+    "e22a560a6ab59216172c49fed794824b84e6ceb831d05fe8972f83846c64d133": {
+      "address": "0x6c148D16Ba96f48d3bFd2A2709D2c93cB171c37B",
+      "txHash": "0x2b9f5930d8f7bdc5280a7c117f80b3ff2c6cd474b31c7efeff1faf5d42fbea78",
+      "layout": {
+        "solcVersion": "0.8.17",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:67"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\utils\\ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:94"
+          },
+          {
+            "label": "ethLockPrice",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:78"
+          },
+          {
+            "label": "ethSplitPrice",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:79"
+          },
+          {
+            "label": "ethRelockPrice",
+            "offset": 0,
+            "slot": "103",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:80"
+          },
+          {
+            "label": "burnThreshold",
+            "offset": 0,
+            "slot": "104",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:81"
+          },
+          {
+            "label": "burnMeter",
+            "offset": 0,
+            "slot": "105",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:82"
+          },
+          {
+            "label": "feeCollector",
+            "offset": 0,
+            "slot": "106",
+            "type": "t_address",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:82"
+          },
+          {
+            "label": "nonce",
+            "offset": 20,
+            "slot": "106",
+            "type": "t_uint64",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:83"
+          },
+          {
+            "label": "codeDiscount",
+            "offset": 28,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:83"
+          },
+          {
+            "label": "codeCommission",
+            "offset": 29,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:85"
+          },
+          {
+            "label": "burnPercent",
+            "offset": 30,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:87"
+          },
+          {
+            "label": "percentLockPrice",
+            "offset": 31,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:89"
+          },
+          {
+            "label": "percentSplitPrice",
+            "offset": 0,
+            "slot": "107",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:92"
+          },
+          {
+            "label": "percentRelockPrice",
+            "offset": 1,
+            "slot": "107",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:95"
+          },
+          {
+            "label": "tokenToBurn",
+            "offset": 2,
+            "slot": "107",
+            "type": "t_contract(IERC20Upgradeable)378",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:97"
+          },
+          {
+            "label": "routerContract",
+            "offset": 0,
+            "slot": "108",
+            "type": "t_contract(IDEXRouter)2276",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:100"
+          },
+          {
+            "label": "referralContract",
+            "offset": 0,
+            "slot": "109",
+            "type": "t_contract(IMoonLabsReferral)2305",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:103"
+          },
+          {
+            "label": "whitelistContract",
+            "offset": 0,
+            "slot": "110",
+            "type": "t_contract(IMoonLabsWhitelist)2313",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:106"
+          },
+          {
+            "label": "ownerToLock",
+            "offset": 0,
+            "slot": "111",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:119"
+          },
+          {
+            "label": "withdrawToLock",
+            "offset": 0,
+            "slot": "112",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:120"
+          },
+          {
+            "label": "tokenToLock",
+            "offset": 0,
+            "slot": "113",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:122"
+          },
+          {
+            "label": "lockInstance",
+            "offset": 0,
+            "slot": "114",
+            "type": "t_mapping(t_uint64,t_struct(LockInstance)2477_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:124"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_array(t_uint64)dyn_storage": {
+            "label": "uint64[]",
+            "numberOfBytes": "32"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_contract(IDEXRouter)2276": {
+            "label": "contract IDEXRouter",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IERC20Upgradeable)378": {
+            "label": "contract IERC20Upgradeable",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IMoonLabsReferral)2305": {
+            "label": "contract IMoonLabsReferral",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IMoonLabsWhitelist)2313": {
+            "label": "contract IMoonLabsWhitelist",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_address,t_array(t_uint64)dyn_storage)": {
+            "label": "mapping(address => uint64[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint64,t_struct(LockInstance)2477_storage)": {
+            "label": "mapping(uint64 => struct MoonLabsTokenLocker.LockInstance)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(LockInstance)2477_storage": {
+            "label": "struct MoonLabsTokenLocker.LockInstance",
+            "members": [
+              {
+                "label": "tokenAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "ownerAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "withdrawAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "depositAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "currentAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "startDate",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "endDate",
+                "type": "t_uint64",
+                "offset": 8,
+                "slot": "5"
+              }
+            ],
+            "numberOfBytes": "192"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    },
+    "e4596021156dcfc61d05930abbe4888fc7e4ad4ccdbf6065c5e2f34fe0d854e8": {
+      "address": "0xA0b44572957Df3c198fc4F864B1745bB12f9327f",
+      "txHash": "0xa2ca69f379f2f6c12194889b2080067c8a7eb9e0795828c13ec0adb11abf2792",
+      "layout": {
+        "solcVersion": "0.8.17",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:67"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\utils\\ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:94"
+          },
+          {
+            "label": "ethLockPrice",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:78"
+          },
+          {
+            "label": "ethSplitPrice",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:79"
+          },
+          {
+            "label": "ethRelockPrice",
+            "offset": 0,
+            "slot": "103",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:80"
+          },
+          {
+            "label": "burnThreshold",
+            "offset": 0,
+            "slot": "104",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:81"
+          },
+          {
+            "label": "burnMeter",
+            "offset": 0,
+            "slot": "105",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:82"
+          },
+          {
+            "label": "feeCollector",
+            "offset": 0,
+            "slot": "106",
+            "type": "t_address",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:82"
+          },
+          {
+            "label": "nonce",
+            "offset": 20,
+            "slot": "106",
+            "type": "t_uint64",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:83"
+          },
+          {
+            "label": "codeDiscount",
+            "offset": 28,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:83"
+          },
+          {
+            "label": "codeCommission",
+            "offset": 29,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:85"
+          },
+          {
+            "label": "burnPercent",
+            "offset": 30,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:87"
+          },
+          {
+            "label": "percentLockPrice",
+            "offset": 31,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:89"
+          },
+          {
+            "label": "percentSplitPrice",
+            "offset": 0,
+            "slot": "107",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:92"
+          },
+          {
+            "label": "percentRelockPrice",
+            "offset": 1,
+            "slot": "107",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:95"
+          },
+          {
+            "label": "tokenToBurn",
+            "offset": 2,
+            "slot": "107",
+            "type": "t_contract(IERC20Upgradeable)378",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:97"
+          },
+          {
+            "label": "routerContract",
+            "offset": 0,
+            "slot": "108",
+            "type": "t_contract(IDEXRouter)6756",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:100"
+          },
+          {
+            "label": "referralContract",
+            "offset": 0,
+            "slot": "109",
+            "type": "t_contract(IMoonLabsReferral)11443",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:103"
+          },
+          {
+            "label": "whitelistContract",
+            "offset": 0,
+            "slot": "110",
+            "type": "t_contract(IMoonLabsWhitelist)11451",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:106"
+          },
+          {
+            "label": "ownerToLock",
+            "offset": 0,
+            "slot": "111",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:119"
+          },
+          {
+            "label": "withdrawToLock",
+            "offset": 0,
+            "slot": "112",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:120"
+          },
+          {
+            "label": "tokenToLock",
+            "offset": 0,
+            "slot": "113",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:123"
+          },
+          {
+            "label": "lockInstance",
+            "offset": 0,
+            "slot": "114",
+            "type": "t_mapping(t_uint64,t_struct(LockInstance)11615_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:124"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_array(t_uint64)dyn_storage": {
+            "label": "uint64[]",
+            "numberOfBytes": "32"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_contract(IDEXRouter)6756": {
+            "label": "contract IDEXRouter",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IERC20Upgradeable)378": {
+            "label": "contract IERC20Upgradeable",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IMoonLabsReferral)11443": {
+            "label": "contract IMoonLabsReferral",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IMoonLabsWhitelist)11451": {
+            "label": "contract IMoonLabsWhitelist",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_address,t_array(t_uint64)dyn_storage)": {
+            "label": "mapping(address => uint64[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint64,t_struct(LockInstance)11615_storage)": {
+            "label": "mapping(uint64 => struct MoonLabsTokenLocker.LockInstance)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(LockInstance)11615_storage": {
+            "label": "struct MoonLabsTokenLocker.LockInstance",
+            "members": [
+              {
+                "label": "tokenAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "ownerAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "withdrawAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "depositAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "currentAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "startDate",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "endDate",
+                "type": "t_uint64",
+                "offset": 8,
+                "slot": "5"
+              }
+            ],
+            "numberOfBytes": "192"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    },
+    "dc9e54714ea6256f5600c9da43fb0ab8d7da1394ef62b64d1338797b520a4138": {
+      "address": "0x73Cfb650712f6e5847aF3aCdDB6d4C19c8Dc8D1b",
+      "txHash": "0x5d5c312854c5e307284c5977253a9f879c6dd56d439dc80ba08cb2d64c6d59de",
+      "layout": {
+        "solcVersion": "0.8.17",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:67"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\utils\\ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:94"
+          },
+          {
+            "label": "ethLockPrice",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:78"
+          },
+          {
+            "label": "ethSplitPrice",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:79"
+          },
+          {
+            "label": "ethRelockPrice",
+            "offset": 0,
+            "slot": "103",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:80"
+          },
+          {
+            "label": "burnThreshold",
+            "offset": 0,
+            "slot": "104",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:81"
+          },
+          {
+            "label": "burnMeter",
+            "offset": 0,
+            "slot": "105",
+            "type": "t_uint256",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:82"
+          },
+          {
+            "label": "feeCollector",
+            "offset": 0,
+            "slot": "106",
+            "type": "t_address",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:82"
+          },
+          {
+            "label": "nonce",
+            "offset": 20,
+            "slot": "106",
+            "type": "t_uint64",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:83"
+          },
+          {
+            "label": "codeDiscount",
+            "offset": 28,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:83"
+          },
+          {
+            "label": "codeCommission",
+            "offset": 29,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:85"
+          },
+          {
+            "label": "burnPercent",
+            "offset": 30,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:87"
+          },
+          {
+            "label": "percentLockPrice",
+            "offset": 31,
+            "slot": "106",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:89"
+          },
+          {
+            "label": "percentSplitPrice",
+            "offset": 0,
+            "slot": "107",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:92"
+          },
+          {
+            "label": "percentRelockPrice",
+            "offset": 1,
+            "slot": "107",
+            "type": "t_uint8",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:95"
+          },
+          {
+            "label": "tokenToBurn",
+            "offset": 2,
+            "slot": "107",
+            "type": "t_contract(IERC20Upgradeable)378",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:97"
+          },
+          {
+            "label": "routerContract",
+            "offset": 0,
+            "slot": "108",
+            "type": "t_contract(IDEXRouter)2276",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:100"
+          },
+          {
+            "label": "referralContract",
+            "offset": 0,
+            "slot": "109",
+            "type": "t_contract(IMoonLabsReferral)2305",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:103"
+          },
+          {
+            "label": "whitelistContract",
+            "offset": 0,
+            "slot": "110",
+            "type": "t_contract(IMoonLabsWhitelist)2313",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:105"
+          },
+          {
+            "label": "ownerToLock",
+            "offset": 0,
+            "slot": "111",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:119"
+          },
+          {
+            "label": "withdrawalToLock",
+            "offset": 0,
+            "slot": "112",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:120"
+          },
+          {
+            "label": "tokenToLock",
+            "offset": 0,
+            "slot": "113",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:122"
+          },
+          {
+            "label": "lockInstance",
+            "offset": 0,
+            "slot": "114",
+            "type": "t_mapping(t_uint64,t_struct(LockInstance)2477_storage)",
+            "contract": "MoonLabsTokenLocker",
+            "src": "contracts\\MoonLabsTokenLocker.sol:124"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_array(t_uint64)dyn_storage": {
+            "label": "uint64[]",
+            "numberOfBytes": "32"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_contract(IDEXRouter)2276": {
+            "label": "contract IDEXRouter",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IERC20Upgradeable)378": {
+            "label": "contract IERC20Upgradeable",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IMoonLabsReferral)2305": {
+            "label": "contract IMoonLabsReferral",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IMoonLabsWhitelist)2313": {
+            "label": "contract IMoonLabsWhitelist",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_address,t_array(t_uint64)dyn_storage)": {
+            "label": "mapping(address => uint64[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint64,t_struct(LockInstance)2477_storage)": {
+            "label": "mapping(uint64 => struct MoonLabsTokenLocker.LockInstance)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(LockInstance)2477_storage": {
+            "label": "struct MoonLabsTokenLocker.LockInstance",
+            "members": [
+              {
+                "label": "tokenAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "ownerAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "withdrawalAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "depositAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "currentAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "startDate",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "endDate",
+                "type": "t_uint64",
+                "offset": 8,
+                "slot": "5"
+              }
+            ],
+            "numberOfBytes": "192"
           },
           "t_uint256": {
             "label": "uint256",

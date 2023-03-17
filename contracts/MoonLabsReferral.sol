@@ -26,9 +26,10 @@
  * contract. Reserved codes are bound to no address and may not be used until bound to an address.
  */
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-pragma solidity ^0.8.17;
+pragma solidity 0.8.17;
 
 interface IMoonLabsReferral {
   function checkIfActive(string calldata code) external view returns (bool);
@@ -42,10 +43,15 @@ interface IMoonLabsReferral {
   function addRewardsEarnedUSD(string calldata code, uint commission) external;
 }
 
-contract MoonLabsReferral is IMoonLabsReferral, Ownable {
+contract MoonLabsReferral is Initializable, IMoonLabsReferral, OwnableUpgradeable {
   /*|| === STATE VARIABLES === ||*/
   int public index; /// Index keeps track of active referral codes
-  string[] private reservedCodes; /// Reserved codes not bound to an address
+
+  function initialize() public initializer {
+    __Ownable_init();
+  }
+
+  bytes32 constant EMPTY_CODE = keccak256(abi.encodePacked(""));
 
   /*|| === MAPPINGS === ||*/
   mapping(address => string) private addressToCode;
@@ -53,6 +59,7 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
   mapping(string => uint) private rewardsEarned; /// Rewards earned by code in WEI
   mapping(string => uint) private rewardsEarnedUSD; /// Rewards earned by code in USD
   mapping(address => bool) public moonLabsContract; /// Is address a Moon Labs address
+  mapping(string => bool) public reservedCodes; /// Reserved codes not bound to an address
 
   /*|| === EXTERNAL FUNCTIONS === ||*/
   /**
@@ -64,11 +71,11 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     /// Convert input to uppercase
     string memory _code = upper(code);
     /// Check if the code is in use
-    require(checkIfActive(code) == false, "Code in use");
+    require(!checkIfActive(code), "Code in use");
     /// Check if the caller address has a code
-    require(keccak256(abi.encodePacked(addressToCode[msg.sender])) == keccak256(abi.encodePacked("")), "Address in use");
+    require(keccak256(abi.encodePacked(addressToCode[msg.sender])) == EMPTY_CODE, "Address in use");
     /// Check if the code is reserved
-    require(checkIfReserved(_code) == false, "Code reserved");
+    require(!reservedCodes[_code], "Code is reserved");
     /// Create new mappings
     addressToCode[msg.sender] = _code;
     codeToAddress[_code] = msg.sender;
@@ -82,7 +89,7 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     /// Check if the address has a code
     string memory _code = upper(addressToCode[msg.sender]);
     /// Check if the code is in use
-    require(keccak256(abi.encodePacked(_code)) != keccak256(abi.encodePacked("")), "Address not in use");
+    require(keccak256(abi.encodePacked(_code)) != EMPTY_CODE, "Address not in use");
     /// Delete mappings
     delete codeToAddress[_code];
     delete addressToCode[msg.sender];
@@ -99,7 +106,7 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     /// Convert input to uppercase
     string memory _code = upper(code);
     /// Check if the code is bound to an address
-    require(checkIfActive(code) == true, "Code not in use");
+    require(checkIfActive(code), "Code not in use");
     /// Delete mappings
     delete addressToCode[codeToAddress[_code]];
     delete codeToAddress[_code];
@@ -120,7 +127,7 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     /// Check if the sender owns the code
     require(msg.sender == codeToAddress[_code], "You do not own this code");
     /// Check if the recipient address has a code
-    require(keccak256(abi.encodePacked(addressToCode[newOwner])) == keccak256(abi.encodePacked("")), "Address in use");
+    require(keccak256(abi.encodePacked(addressToCode[newOwner])) == EMPTY_CODE, "Address in use");
     /// Reset the amount earned
     delete rewardsEarned[_code];
     delete rewardsEarnedUSD[_code];
@@ -140,9 +147,9 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
       /// Check if the code is in use
       require(codeToAddress[_code] == address(0), "Code in use");
       /// Check if the code is reserved
-      require(checkIfReserved(_code) == false, "Code is reserved");
+      require(!reservedCodes[_code], "Code is reserved");
       /// Push code to the reserved list
-      reservedCodes.push(_code);
+      reservedCodes[_code] = true;
     }
   }
 
@@ -155,9 +162,9 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     /// Convert input to uppercase
     string memory _code = upper(code);
     /// Check if the code is not reserved
-    require(checkIfReserved(_code) == true, "Code not reserved");
+    require(reservedCodes[_code], "Code not reserved");
     /// Check if the recipient address has a code
-    require(keccak256(abi.encodePacked(addressToCode[newOwner])) == keccak256(abi.encodePacked("")), "Address in use");
+    require(keccak256(abi.encodePacked(addressToCode[newOwner])) == EMPTY_CODE, "Address in use");
     /// Remove code from the reserved list
     removeReservedCode(_code);
     /// Create new mappings
@@ -265,14 +272,8 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     /// Convert input to uppercase
     string memory _code = upper(code);
     /// Check if the code is reserved
-    require(checkIfReserved(_code) == true, "Code not reserved");
-    for (uint16 i = 0; i < reservedCodes.length; i++) {
-      /// Comapre two strings
-      if (keccak256(abi.encodePacked(_code)) == keccak256(abi.encodePacked(reservedCodes[i]))) {
-        reservedCodes[i] = reservedCodes[reservedCodes.length - 1];
-        reservedCodes.pop();
-      }
-    }
+    require(reservedCodes[_code], "Code not reserved");
+    reservedCodes[_code] = false;
   }
 
   /**
@@ -286,21 +287,6 @@ contract MoonLabsReferral is IMoonLabsReferral, Ownable {
     // Check if the code is in use
     if (codeToAddress[_code] == address(0)) return false;
     return true;
-  }
-
-  /**
-   * @notice Check if the code is reserved
-   * @param code referral code
-   * @return bool true if code is reserved and false if it is not
-   */
-  function checkIfReserved(string memory code) public view returns (bool) {
-    // Convert input to uppercase
-    string memory _code = upper(code);
-    for (uint16 i = 0; i < reservedCodes.length; i++) {
-      // Comapre two strings
-      if (keccak256(abi.encodePacked(_code)) == keccak256(abi.encodePacked(reservedCodes[i]))) return true;
-    }
-    return false;
   }
 
   /*|| === PRIVATE FUNCTIONS === ||*/

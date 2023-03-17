@@ -25,12 +25,14 @@
  * remain locked until their respective unlock date without ANY exceptions.
  */
 
-pragma solidity ^0.8.17;
+pragma solidity 0.8.17;
 
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "./IDEXRouter.sol";
 
 interface IMoonLabsReferral {
@@ -45,7 +47,9 @@ interface IMoonLabsWhitelist {
   function getIsWhitelisted(address _address) external view returns (bool);
 }
 
-contract MoonLabsLiquidityLocker is OwnableUpgradeable {
+contract MoonLabsLiquidityLocker is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
+  using SafeERC20Upgradeable for IERC20Upgradeable;
+
   function initialize(address _tokenToBurn, address _feeCollector, address referralAddress, address whitelistAddress, address routerAddress) public initializer {
     __Ownable_init();
     tokenToBurn = IERC20Upgradeable(_tokenToBurn);
@@ -76,9 +80,9 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
   uint8 public codeDiscount; /// Discount in the percentage applied to the customer when using referral code, represented in 10s
   uint8 public codeCommission; /// Percentage of each lock purchase sent to referral code owner, represented in 10s
   uint8 public burnPercent; /// Percent of each transaction sent to burnMeter, represented in 10s
-  uint8 public percentLockPrice; /// Percent of deposited tokens taken for a lock that is paid for using tokens, represented in 10000s
-  uint8 public percentSplitPrice; /// Percent of deposited tokens taken for a split that is paid for using tokens. represented in 10000s
-  uint8 public percentRelockPrice; /// Percent of deposited tokens taken for a relock that is paid for using tokens. represented in 10000s
+  uint16 public percentLockPrice; /// Percent of deposited tokens taken for a lock that is paid for using tokens, represented in 10000s
+  uint16 public percentSplitPrice; /// Percent of deposited tokens taken for a split that is paid for using tokens. represented in 10000s
+  uint16 public percentRelockPrice; /// Percent of deposited tokens taken for a relock that is paid for using tokens. represented in 10000s
   IERC20Upgradeable public tokenToBurn; /// Native Moon Labs token
   IDEXRouter public routerContract; /// Uniswap router
   IMoonLabsReferral public referralContract; /// Moon Labs referral contract
@@ -110,6 +114,7 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
   event LockTransferred(address from, address to, uint64 nonce);
   event LockRelocked(address owner, uint amount, uint64 unlockDate, uint64 nonce);
   event LockSplit(address from, address to, uint amount, uint64 nonce, uint64 newNonce);
+  event TokensBurned(uint amount);
 
   /*|| === EXTERNAL FUNCTIONS === ||*/
   /**  
@@ -124,19 +129,16 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
   function createLockWhitelist(address tokenAddress, LockParams calldata lock) external {
     /// Check if token is whitelisted
     require(whitelistContract.getIsWhitelisted(tokenAddress), "Token is not whitelisted");
-    /// Calculate total deposit
+
     uint depositAmount = lock.depositAmount;
 
     /// Check for adequate supply in sender wallet
     require((depositAmount) <= IERC20Upgradeable(tokenAddress).balanceOf(msg.sender), "Token balance");
 
-    uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
-    /// Transfer tokens from sender to contract
-    transferTokensFrom(tokenAddress, msg.sender, depositAmount);
-    uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
+    /// Transfer tokens to contract and get amount sent
+    uint amountSent = transferAndCalculate(tokenAddress, depositAmount);
 
-    nonce++;
-    createLockInstance(tokenAddress, lock, amountSent, depositAmount);
+    createLockInstance(tokenAddress, lock, amountSent);
 
     emit LockCreated(msg.sender, tokenAddress, nonce);
   }
@@ -151,21 +153,18 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
    * @dev Since fees are not paid for in ETH, no ETH is added to the burn meter. This function supports tokens with a transfer tax, although not recommended due to potential customer confusion
    */
   function createLockPercent(address tokenAddress, LockParams calldata lock) external {
-    /// Calculate total deposit
     uint depositAmount = lock.depositAmount;
 
     /// Calculate token fee based off total token deposit
     uint tokenFee = MathUpgradeable.mulDiv(depositAmount, percentLockPrice, 10000);
+
     /// Check for adequate supply in sender wallet
     require((depositAmount + tokenFee) <= IERC20Upgradeable(tokenAddress).balanceOf(msg.sender), "Token balance");
 
-    uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
-    /// Transfer tokens from sender to contract
-    transferTokensFrom(tokenAddress, msg.sender, depositAmount + tokenFee);
-    uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal - tokenFee;
+    /// Transfer tokens to contract and get amount sent
+    uint amountSent = transferAndCalculateWithFee(tokenAddress, depositAmount, tokenFee);
 
-    nonce++;
-    createLockInstance(tokenAddress, lock, amountSent, depositAmount);
+    createLockInstance(tokenAddress, lock, amountSent);
 
     /// Transfer token fees to the collector address
     transferTokensTo(tokenAddress, feeCollector, tokenFee);
@@ -185,19 +184,16 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
   function createLockEth(address tokenAddress, LockParams calldata lock) external payable {
     /// Check for correct message value
     require(msg.value == ethLockPrice, "Incorrect price");
-    /// Calculate total deposit
+
     uint depositAmount = lock.depositAmount;
 
     /// Check for adequate supply in sender wallet
     require(depositAmount <= IERC20Upgradeable(tokenAddress).balanceOf(msg.sender), "Token balance");
 
-    uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
-    /// Transfer tokens from sender to contract
-    transferTokensFrom(tokenAddress, msg.sender, depositAmount);
-    uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
+    /// Transfer tokens to contract and get amount sent
+    uint amountSent = transferAndCalculate(tokenAddress, depositAmount);
 
-    nonce++;
-    createLockInstance(tokenAddress, lock, amountSent, depositAmount);
+    createLockInstance(tokenAddress, lock, amountSent);
 
     /// Add to burn amount in ETH burn meter
     burnMeter += (msg.value * burnPercent) / 100;
@@ -218,24 +214,24 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
    * @dev This function supports tokens with a transfer tax, although not recommended due to potential customer confusion
    */
   function createLockWithCodeEth(address tokenAddress, LockParams calldata lock, string calldata code) external payable {
-    uint _ethLockPrice = ethLockPrice;
     /// Check for referral valid code
     require(referralContract.checkIfActive(code), "Invalid code");
+
+    /// Calculate referral commission
+    uint commission = (ethLockPrice * codeDiscount) / 100;
+
     /// Check for correct message value
-    require(msg.value == (_ethLockPrice - (_ethLockPrice * codeDiscount) / 100), "Incorrect price");
-    /// Calculate total deposit
+    require(msg.value == (ethLockPrice - commission), "Incorrect price");
+
     uint depositAmount = lock.depositAmount;
 
     /// Check for adequate supply in sender wallet
     require(depositAmount <= IERC20Upgradeable(tokenAddress).balanceOf(msg.sender), "Token balance");
 
-    uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
-    /// Transfer tokens from sender to contract
-    transferTokensFrom(tokenAddress, msg.sender, depositAmount);
-    uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
+    /// Transfer tokens to contract and get amount sent
+    uint amountSent = transferAndCalculate(tokenAddress, depositAmount);
 
-    nonce++;
-    createLockInstance(tokenAddress, lock, amountSent, depositAmount);
+    createLockInstance(tokenAddress, lock, amountSent);
 
     /// Add to burn amount burn meter
     burnMeter += (msg.value * burnPercent) / 100;
@@ -243,7 +239,7 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
     handleBurns();
 
     /// Distribute commission
-    distributeCommission(code, (_ethLockPrice * codeCommission) / 100);
+    distributeCommission(code, commission);
 
     emit LockCreated(msg.sender, tokenAddress, nonce);
   }
@@ -256,17 +252,16 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
   function withdrawUnlockedTokens(uint64 _nonce, uint amount) external {
     /// Check if the amount attempting to be withdrawn is valid
     require(amount <= getClaimableTokens(_nonce), "Withdraw balance");
+    /// Revert 0 withdraw
     require(amount > 0, "Withdrawn min");
     /// Check that sender is the lock owner
     require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
-
-    address tokenAddress = lockInstance[_nonce].tokenAddress;
 
     /// Decrement amount current by the amount being withdrawn
     lockInstance[_nonce].currentAmount -= amount;
 
     /// Transfer tokens from the contract to the recipient
-    transferTokensTo(tokenAddress, msg.sender, amount);
+    transferTokensTo(lockInstance[_nonce].tokenAddress, msg.sender, amount);
 
     /// Delete lock instance if current amount reaches zero
     if (lockInstance[_nonce].currentAmount <= 0) deleteLockInstance(_nonce);
@@ -277,13 +272,14 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
   /**
    * @notice Transfer withdraw ownership of lock instance, only callable by withdraw owner
    * @param _nonce ID of desired lock instance
-   * @param newOwner Address of new withdraw address
+   * @param _address Address of new withdraw address
    */
-  function transferLockOwnership(uint64 _nonce, address newOwner) external {
+  function transferLockOwnership(uint64 _nonce, address _address) external {
+    require(_address != address(0), "Zero address");
     /// Check that sender is the lock owner
     require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
-    /// Revert self transfer
-    require(newOwner != msg.sender, "Self Transfer");
+    /// Revert same transfer
+    require(_address != msg.sender, "Same transfer");
 
     /// Delete mapping from the old owner to nonce of lock instance and pop
     uint64[] storage withdrawArray = ownerToLock[msg.sender];
@@ -296,12 +292,12 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
     }
 
     /// Change lock owner in lock instance to new owner
-    lockInstance[_nonce].ownerAddress == newOwner;
+    lockInstance[_nonce].ownerAddress == _address;
 
     /// Map nonce of transferred lock to the new owner
-    ownerToLock[newOwner].push(_nonce);
+    ownerToLock[_address].push(_nonce);
 
-    emit LockTransferred(msg.sender, newOwner, _nonce);
+    emit LockTransferred(msg.sender, _address, _nonce);
   }
 
   /**
@@ -329,10 +325,8 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
     require(_unlockDate + lockInstance[_nonce].unlockDate < 10000000000, "End date");
 
     if (amount > 0) {
-      uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
-      /// Transfer tokens from sender to contract
-      transferTokensFrom(tokenAddress, msg.sender, amount);
-      uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
+      /// Transfer tokens to contract and get amount sent
+      uint amountSent = transferAndCalculate(tokenAddress, amount);
       lockInstance[_nonce].currentAmount += amountSent;
       lockInstance[_nonce].depositAmount += amountSent;
     }
@@ -363,17 +357,15 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
     require(_unlockDate + lockInstance[_nonce].unlockDate < 10000000000, "End date");
 
     if (amount > 0) {
-      uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
-      /// Transfer tokens from sender to contract
-      transferTokensFrom(tokenAddress, msg.sender, amount);
-      uint amountSent = IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
+      /// Transfer tokens to contract and get amount sent
+      uint amountSent = transferAndCalculate(tokenAddress, amount);
       lockInstance[_nonce].currentAmount += amountSent;
       lockInstance[_nonce].depositAmount += amountSent;
     }
     if (_unlockDate > 0) lockInstance[_nonce].unlockDate += _unlockDate;
 
     /// Check if the token is not whitelisted
-    if (whitelistContract.getIsWhitelisted(tokenAddress)) {
+    if (!whitelistContract.getIsWhitelisted(tokenAddress)) {
       /// Calculate the token fee based on total tokens in lock
       uint tokenFee = MathUpgradeable.mulDiv(lockInstance[_nonce].currentAmount, percentRelockPrice, 10000);
       /// Deduct fee from token balance
@@ -500,8 +492,10 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
 
   /**
    * @notice Set the fee collection address. Owner only function.
+   * @param _feeCollector Address of the fee collector
    */
   function setFeeCollector(address _feeCollector) external onlyOwner {
+    require(_feeCollector != address(0), "Zero Address");
     feeCollector = _feeCollector;
   }
 
@@ -510,6 +504,7 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
    * @param _routerAddress Address of uniswap router
    */
   function setRouter(address _routerAddress) external onlyOwner {
+    require(_routerAddress != address(0), "Zero Address");
     routerContract = IDEXRouter(_routerAddress);
   }
 
@@ -518,6 +513,7 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
    * @param _referralAddress Address of Moon Labs referral address
    */
   function setReferralContract(address _referralAddress) external onlyOwner {
+    require(_referralAddress != address(0), "Zero Address");
     referralContract = IMoonLabsReferral(_referralAddress);
   }
 
@@ -558,6 +554,7 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
    * @param _codeDiscount Percentage represented in 10s
    */
   function setCodeDiscount(uint8 _codeDiscount) external onlyOwner {
+    require(_codeDiscount < 100, "Percentage ceiling");
     codeDiscount = _codeDiscount;
   }
 
@@ -566,6 +563,7 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
    * @param _codeCommission Percentage represented in 10s
    */
   function setCodeCommission(uint8 _codeCommission) external onlyOwner {
+    require(_codeCommission < 100, "Percentage ceiling");
     codeCommission = _codeCommission;
   }
 
@@ -590,7 +588,7 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
    * @notice Set the percent of deposited tokens taken for a lock that is paid for using tokens. Owner only function.
    * @param _percentLockPrice Percentage represented in 10000s
    */
-  function setPercentLockPrice(uint8 _percentLockPrice) external onlyOwner {
+  function setPercentLockPrice(uint16 _percentLockPrice) external onlyOwner {
     require(_percentLockPrice <= 10000, "Max percent");
     percentLockPrice = _percentLockPrice;
   }
@@ -599,7 +597,7 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
    * @notice Set the percent of deposited tokens taken for a split that is paid for using tokens. Owner only function.
    * @param _percentSplitPrice Percentage represented in 10000s
    */
-  function setPercentSplitPrice(uint8 _percentSplitPrice) external onlyOwner {
+  function setPercentSplitPrice(uint16 _percentSplitPrice) external onlyOwner {
     require(_percentSplitPrice <= 10000, "Max percent");
     percentSplitPrice = _percentSplitPrice;
   }
@@ -608,7 +606,7 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
    * @notice Set the percent of deposited tokens taken for a relock that is paid for using tokens. Owner only function.
    * @param _percentRelockPrice Percentage represented in 10000s
    */
-  function setPercentRelockPrice(uint8 _percentRelockPrice) external onlyOwner {
+  function setPercentRelockPrice(uint16 _percentRelockPrice) external onlyOwner {
     require(_percentRelockPrice <= 10000, "Max percent");
     percentRelockPrice = _percentRelockPrice;
   }
@@ -650,18 +648,56 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
    *    depositAmount Number of tokens in the lock instance
    *    unlockDate Date when all tokens are fully unlocked
    */
-  function createLockInstance(address tokenAddress, LockParams calldata lock, uint amountSent, uint totalDeposit) private {
-    uint depositAmount = lock.depositAmount;
+  function createLockInstance(address tokenAddress, LockParams calldata lock, uint amountSent) private {
     uint64 unlockDate = lock.unlockDate;
     require(unlockDate < 10000000000, "End date");
-    require(lock.depositAmount > 0, "Min deposit");
+    require(amountSent > 0, "Min deposit");
 
     /// Create a new Lock Instance and map to nonce
-    lockInstance[nonce] = LockInstance(tokenAddress, lock.ownerAddress, MathUpgradeable.mulDiv(amountSent, depositAmount, totalDeposit), MathUpgradeable.mulDiv(amountSent, depositAmount, totalDeposit), unlockDate);
+    lockInstance[nonce] = LockInstance(tokenAddress, lock.ownerAddress, amountSent, amountSent, unlockDate);
     /// Map token address to nonce
     tokenToLock[tokenAddress].push(nonce);
     /// Map owner address to nonce
     ownerToLock[lock.ownerAddress].push(nonce);
+    nonce++;
+  }
+
+  /**
+   * @notice transfers tokens to contract and calcualtes amount sent
+   * @param tokenAddress address of the token
+   * @param amount total tokens attempting to be sent
+   * @return total amount sent
+   */
+  function transferAndCalculate(address tokenAddress, uint amount) private returns (uint) {
+    /// Get balance before sending tokens
+    uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
+
+    /// Transfer tokens from sender to contract
+    transferTokensFrom(tokenAddress, msg.sender, amount);
+
+    /// Calculate amount sent based off before and after balance
+    return IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
+  }
+
+  /**
+   * @notice transfers tokens to contract and calcualtes amount sent with fees
+   * @param tokenAddress address of the token
+   * @param amount total tokens attempting to be sent
+   * @param tokenFee fee taken for locking
+   * @return total amount sent
+   */
+  function transferAndCalculateWithFee(address tokenAddress, uint amount, uint tokenFee) private returns (uint) {
+    /// Get balance before sending tokens
+    uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(address(this));
+
+    /// Transfer tokens from sender to contract
+    transferTokensFrom(tokenAddress, msg.sender, amount + tokenFee);
+
+    /// Transfer token fees to the collector address
+    transferTokensTo(tokenAddress, feeCollector, tokenFee);
+
+    /// Calculate amount sent based off before and after balance
+    return IERC20Upgradeable(tokenAddress).balanceOf(address(this)) - previousBal;
   }
 
   /**
@@ -669,7 +705,14 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
    * @param _nonce ID of desired lock instance
    * @return Number of unlocked tokens
    */
-  function getClaimableTokens(uint64 _nonce) public view returns (uint) {}
+  function getClaimableTokens(uint64 _nonce) public view returns (uint) {
+    uint currentAmount = lockInstance[_nonce].currentAmount;
+
+    /// Check if the token balance is 0
+    if (currentAmount <= 0) return 0;
+
+    return lockInstance[_nonce].unlockDate <= block.timestamp ? currentAmount : 0;
+  }
 
   /*|| === PRIVATE FUNCTIONS === ||*/
   /**
@@ -679,7 +722,7 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
    * @param amount number of tokens being transferred
    */
   function transferTokensFrom(address tokenAddress, address from, uint amount) private {
-    IERC20Upgradeable(tokenAddress).transferFrom(from, address(this), amount);
+    IERC20Upgradeable(tokenAddress).safeTransferFrom(from, address(this), amount);
   }
 
   /**
@@ -689,7 +732,7 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
    * @param amount number of tokens being transferred
    */
   function transferTokensTo(address tokenAddress, address to, uint amount) private {
-    IERC20Upgradeable(tokenAddress).transfer(to, amount);
+    IERC20Upgradeable(tokenAddress).safeTransfer(to, amount);
   }
 
   /**
@@ -705,6 +748,9 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
       path[1] = address(tokenToBurn);
       routerContract.swapExactETHForTokensSupportingFeeOnTransferTokens{ value: _burnMeter }(0, path, 0x000000000000000000000000000000000000dEaD, block.timestamp);
       _burnMeter = 0;
+
+      /// Emit event
+      emit TokensBurned(burnMeter);
       burnMeter = _burnMeter;
     }
   }
@@ -714,14 +760,15 @@ contract MoonLabsLiquidityLocker is OwnableUpgradeable {
    * @param code referral code
    * @param commission amount of eth to send to referral code owner
    */
-  function distributeCommission(string memory code, uint commission) private {
+  function distributeCommission(string memory code, uint commission) private nonReentrant {
     /// Get referral code owner
     address payable to = payable(referralContract.getAddressByCode(code));
     /// Send ether to code owner
     (bool sent, ) = to.call{ value: commission }("");
-    require(sent, "Failed to send Ether");
-    /// Log rewards in the referral contract
-    referralContract.addRewardsEarned(code, commission);
+    if (sent) {
+      /// Log rewards in the referral contract
+      referralContract.addRewardsEarned(code, commission);
+    }
   }
 
   /**
