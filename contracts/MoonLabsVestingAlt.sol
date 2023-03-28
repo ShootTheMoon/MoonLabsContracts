@@ -51,7 +51,7 @@ interface IMoonLabsWhitelist {
     function getIsWhitelisted(address _address) external view returns (bool);
 }
 
-contract MoonLabsVesting is
+contract MoonLabsVestingAlt is
     Initializable,
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable
@@ -62,12 +62,14 @@ contract MoonLabsVesting is
         address _tokenToBurn,
         address _feeCollector,
         address referralAddress,
+        address _burnCollector,
         address whitelistAddress,
         address routerAddress
     ) public initializer {
         __Ownable_init();
         tokenToBurn = IERC20Upgradeable(_tokenToBurn);
         feeCollector = _feeCollector;
+        burnCollector = _burnCollector;
         referralContract = IMoonLabsReferral(referralAddress);
         whitelistContract = IMoonLabsWhitelist(whitelistAddress);
         routerContract = IDEXRouter(routerAddress);
@@ -85,6 +87,7 @@ contract MoonLabsVesting is
     uint public burnThreshold; /// ETH in WEI when tokenToBurn should be bought and sent to DEAD address
     uint public burnMeter; /// Current ETH in WEI for buying and burning tokenToBurn
     address public feeCollector; /// Fee collection address for paying with token percent
+    address public burnCollector; /// Burn collection address
     uint64 public nonce; /// Unique lock identifier
     uint8 public codeDiscount; /// Discount in the percentage applied to the customer when using referral code, represented in 10s
     uint8 public codeCommission; /// Percentage of each lock purchase sent to referral code owner, represented in 10s
@@ -126,7 +129,6 @@ contract MoonLabsVesting is
     );
     event TokensWithdrawn(address owner, uint amount, uint64 nonce);
     event LockTransferred(address from, address to, uint64 nonce);
-    event TokensBurned(uint amount);
 
     /*|| === EXTERNAL FUNCTIONS === ||*/
     /**
@@ -362,6 +364,15 @@ contract MoonLabsVesting is
     function setFeeCollector(address _feeCollector) external onlyOwner {
         require(_feeCollector != address(0), "Zero Address");
         feeCollector = _feeCollector;
+    }
+
+    /**
+     * @notice Set the burn collection address. Owner only function.
+     * @param _burnCollector Address of the burn collector
+     */
+    function setBurnCollector(address _burnCollector) external onlyOwner {
+        require(_burnCollector != address(0), "Zero Address");
+        burnCollector = _burnCollector;
     }
 
     /**
@@ -719,28 +730,20 @@ contract MoonLabsVesting is
     }
 
     /**
-     * @notice Buy Moon Labs native token if burn threshold is met or crossed and send to the dead address
+     * @notice Send eth to burn collector
      * @param value amount added to burn meter
      */
     function handleBurns(uint value) private {
         burnMeter += MathUpgradeable.mulDiv(value, burnPercent, 100);
         /// Check if the threshold is met
         if (burnMeter >= burnThreshold) {
-            /// Buy tokenToBurn via Uniswap router and send to the dead address
-            address[] memory path = new address[](2);
-            path[0] = routerContract.WETH();
-            path[1] = address(tokenToBurn);
-            uint[] memory amounts = routerContract.swapExactETHForTokens{
-                value: burnMeter
-            }(
-                0,
-                path,
-                0x000000000000000000000000000000000000dEaD,
-                block.timestamp
-            );
-            /// Reset burn meter
-            burnMeter = 0;
-            emit TokensBurned(amounts[amounts.length - 1]);
+            /// Send eth to burn wallet
+            (bool sent, ) = payable(burnCollector).call{value: burnMeter}("");
+            /// Check if eth successfully sent
+            if (sent) {
+                /// Reset burn meter
+                burnMeter = 0;
+            }
         }
     }
 

@@ -30,7 +30,10 @@ describe("Deployment", async function () {
 
     // Deploy referral contract
     const MoonLabsReferral = await ethers.getContractFactory("MoonLabsReferral");
-    const moonLabsReferral = await MoonLabsReferral.deploy();
+    const moonLabsReferral = await upgrades.deployProxy(MoonLabsReferral, {
+      initializer: "initialize",
+    });
+    await moonLabsReferral.deployed();
 
     // Deploy test token
     const TestToken = await ethers.getContractFactory("MoonLabs");
@@ -42,7 +45,10 @@ describe("Deployment", async function () {
 
     // Deploy whitelist contract
     const MoonLabsWhitelist = await ethers.getContractFactory("MoonLabsWhitelist");
-    const moonLabsWhitelist = await MoonLabsWhitelist.deploy(usdcToken.address, "5000000000000");
+    const moonLabsWhitelist = await upgrades.deployProxy(MoonLabsWhitelist, [usdcToken.address, "5000000000000"], {
+      initializer: "initialize",
+    });
+    await moonLabsWhitelist.deployed();
 
     // Deploy token locker contract
     const MoonLabsTokenLocker = await ethers.getContractFactory("MoonLabsTokenLocker");
@@ -101,10 +107,10 @@ describe("Deployment", async function () {
     it("Should create 10 TokenLocker instances paying whitelist", async function () {
       const { owner, moonLabsTokenLocker, moonLabsWhitelist, testToken, address1 } = await loadFixture(deployTokenFixture);
       await moonLabsWhitelist.purchaseWhitelist(testToken.address);
-      await expect(moonLabsTokenLocker.createLockWhitelist(testToken.address, [[20000000000000, 1672110244, 1672110245, owner.address, address1.address]]))
+      await expect(moonLabsTokenLocker.createLockEth(testToken.address, [[20000000000000, 1672110244, 1672110245, owner.address, address1.address]]))
         .to.emit(moonLabsTokenLocker, "LockCreated")
         .withArgs(owner.address, testToken.address, 1, 1);
-      await expect(moonLabsTokenLocker.createLockWhitelist(testToken.address, [[20000000000000, 1672110244, 1672110245, owner.address, address1.address]]))
+      await expect(moonLabsTokenLocker.createLockEth(testToken.address, [[20000000000000, 1672110244, 1672110245, owner.address, address1.address]]))
         .to.emit(moonLabsTokenLocker, "LockCreated")
         .withArgs(owner.address, testToken.address, 1, 2);
       // expect(await testToken.balanceOf(address1.address)).to.be.equal("100000000000");
@@ -154,12 +160,9 @@ describe("Deployment", async function () {
       await expect(moonLabsTokenLocker.createLockWithCodeEth(testToken.address, [[20000000000000, 1672110244, 1672110245, owner.address, owner.address]], "moon", { value: ethers.utils.parseEther(".0072") }))
         .to.emit(moonLabsTokenLocker, "LockCreated")
         .withArgs(owner.address, testToken.address, 1, 2);
-        
-      console.log(await moonLabsTokenLocker.getNonceFromWithdrawAddress(owner.address));
 
       await moonLabsTokenLocker.withdrawUnlockedTokens(1, 20000000000000);
 
-      console.log(await moonLabsTokenLocker.getNonceFromWithdrawAddress(owner.address));
       // expect(await moonLabsReferral.getRewardsEarned("moon")).to.equal("20000000000000000");
     });
   });

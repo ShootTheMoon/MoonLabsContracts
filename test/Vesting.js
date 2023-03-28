@@ -30,19 +30,25 @@ describe("Deployment", async function () {
 
     // Deploy referral contract
     const MoonLabsReferral = await ethers.getContractFactory("MoonLabsReferral");
-    const moonLabsReferral = await MoonLabsReferral.deploy();
+    const moonLabsReferral = await upgrades.deployProxy(MoonLabsReferral, {
+      initializer: "initialize",
+    });
+    await moonLabsReferral.deployed();
 
     // Deploy test token
-    const TestToken = await ethers.getContractFactory("TestToken");
-    const testToken = await TestToken.deploy();
+    const TestToken = await ethers.getContractFactory("MoonLabs");
+    const testToken = await TestToken.deploy("0xD83c60A3c6A88FAff00691F12551Bba2134b7cfD", "0xD83c60A3c6A88FAff00691F12551Bba2134b7cfD", "0xD83c60A3c6A88FAff00691F12551Bba2134b7cfD", "0xD83c60A3c6A88FAff00691F12551Bba2134b7cfD");
 
     // Deploy usdc token
-    const USDCToken = await ethers.getContractFactory("TestToken");
-    const usdcToken = await USDCToken.deploy();
+    const USDCToken = await ethers.getContractFactory("MoonLabs");
+    const usdcToken = await USDCToken.deploy("0xD83c60A3c6A88FAff00691F12551Bba2134b7cfD", "0xD83c60A3c6A88FAff00691F12551Bba2134b7cfD", "0xD83c60A3c6A88FAff00691F12551Bba2134b7cfD", "0xD83c60A3c6A88FAff00691F12551Bba2134b7cfD");
 
     // Deploy whitelist contract
     const MoonLabsWhitelist = await ethers.getContractFactory("MoonLabsWhitelist");
-    const moonLabsWhitelist = await MoonLabsWhitelist.deploy(usdcToken.address, "5000000000000000000000");
+    const moonLabsWhitelist = await upgrades.deployProxy(MoonLabsWhitelist, [usdcToken.address, "5000000000000"], {
+      initializer: "initialize",
+    });
+    await moonLabsWhitelist.deployed();
 
     // Deploy vesting contract
     const MoonLabsVesting = await ethers.getContractFactory("MoonLabsVesting");
@@ -94,21 +100,21 @@ describe("Deployment", async function () {
 
       await expect(moonLabsVesting.createLockPercent(testToken.address, [[20000000000000, 1672110244, 1672110245, owner.address]]))
         .to.emit(moonLabsVesting, "LockCreated")
-        .withArgs(owner.address, testToken.address, 1);
+        .withArgs(owner.address, testToken.address, 1, 1);
       await expect(moonLabsVesting.createLockPercent(testToken.address, [[20000000000000, 1672110244, 1672110245, owner.address]]))
         .to.emit(moonLabsVesting, "LockCreated")
-        .withArgs(owner.address, testToken.address, 1);
+        .withArgs(owner.address, testToken.address, 1, 2);
       // expect(await testToken.balanceOf(address1.address)).to.be.equal("100000000000");
     });
     it("Should create 10 vesting instances paying with Eth", async function () {
       const { owner, address1, address2, moonLabsVesting, testToken } = await loadFixture(deployTokenFixture);
 
-      await expect(moonLabsVesting.createLockEth(testToken.address, [[20000000000000, 1672110244, 1672110245, owner.address]], { value: ethers.utils.parseEther(".1") }))
+      await expect(moonLabsVesting.createLockEth(testToken.address, [[20000000000000, 1672110244, 1672110245, owner.address]], { value: ethers.utils.parseEther(".005") }))
         .to.emit(moonLabsVesting, "LockCreated")
-        .withArgs(owner.address, testToken.address, 1);
-      await expect(moonLabsVesting.createLockEth(testToken.address, [[20000000000000, 1672110244, 1672110245, owner.address]], { value: ethers.utils.parseEther(".1") }))
+        .withArgs(owner.address, testToken.address, 1, 1);
+      await expect(moonLabsVesting.createLockEth(testToken.address, [[20000000000000, 1672110244, 1672110245, owner.address]], { value: ethers.utils.parseEther(".005") }))
         .to.emit(moonLabsVesting, "LockCreated")
-        .withArgs(owner.address, testToken.address, 1);
+        .withArgs(owner.address, testToken.address, 1, 2);
       // await expect(moonLabsVesting.createLockEth(testToken.address, [[address1.address, 20000000000000, 1672110244, 1672110245]], { value: ethers.utils.parseEther(".1") }))
       //   .to.emit(moonLabsVesting, "LockCreated")
       //   .withArgs(owner.address, testToken.address, 1);
@@ -139,12 +145,12 @@ describe("Deployment", async function () {
       await moonLabsReferral.addMoonLabsContract(moonLabsVesting.address);
       await moonLabsReferral.createCode("moon");
       expect(await moonLabsReferral.checkIfActive("moon")).to.equal(true);
-      await expect(moonLabsVesting.createLockWithCodeEth(testToken.address, [[20000000000000, 1672110244, 1672110245, owner.address]], "moon", { value: ethers.utils.parseEther(".09") }))
+      await expect(moonLabsVesting.createLockWithCodeEth(testToken.address, [[20000000000000, 1672110244, 1672110245, owner.address]], "moon", { value: ethers.utils.parseEther(".0045") }))
         .to.emit(moonLabsVesting, "LockCreated")
-        .withArgs(owner.address, testToken.address, 1);
-      await expect(moonLabsVesting.createLockWithCodeEth(testToken.address, [[20000000000000, 1672110244, 1672110245, owner.address]], "moon", { value: ethers.utils.parseEther(".09") }))
+        .withArgs(owner.address, testToken.address, 1, 1);
+      await expect(moonLabsVesting.createLockWithCodeEth(testToken.address, [[20000000000000, 1672110244, 1672110245, owner.address]], "moon", { value: ethers.utils.parseEther(".0045") }))
         .to.emit(moonLabsVesting, "LockCreated")
-        .withArgs(owner.address, testToken.address, 1);
+        .withArgs(owner.address, testToken.address, 1, 2);
 
       // expect(await moonLabsReferral.getRewardsEarned("moon")).to.equal("20000000000000000");
     });

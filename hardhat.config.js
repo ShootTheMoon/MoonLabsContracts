@@ -12,7 +12,7 @@ module.exports = {
   solidity: {
     compilers: [
       {
-        version: "0.8.17",
+        version: "0.8.19",
         settings: {
           optimizer: {
             // Toggles whether the optimizer is on or off.
@@ -22,7 +22,7 @@ module.exports = {
             // The number of runs specifies roughly how often
             // the deployed code will be executed across the
             // life-time of the contract.
-            runs: 3000,
+            runs: 2000,
           },
         },
       },
@@ -52,7 +52,11 @@ module.exports = {
       },
     },
     goerli: {
-      url: process.env.TESTNET_API,
+      url: process.env.GOERLI_API,
+      accounts: [process.env.PRIVATE_KEY],
+    },
+    sepolia: {
+      url: process.env.SEPOLIA_API,
       accounts: [process.env.PRIVATE_KEY],
     },
     bsc: {

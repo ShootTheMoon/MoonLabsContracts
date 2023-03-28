@@ -13,18 +13,16 @@
  * adapt, edit, modify, republish, reproduce, rebroadcast, duplicate, distribute, or publicly display any of the content, information, or material
  * on this smart contract for non-personal or commercial purposes, except for any other use as permitted by the applicable copyright law.
  *
- * This is for ERC20 tokens and should NOT be used for Uniswap LP tokens or ANY other token protocol.
  *
  * Website: https://www.moonlabs.site/
  */
 
 /**
- * @title A token locker contract for ERC20 tokens.
+ * @title A liquidity locker contract for uniswap based AMM tokens.
  * @author Moon Labs LLC
- * @notice This contract's intended purpose is to allow users to create token locks for ERC20 tokens. Lock owners may change withdrawn address, extend, transfer, add to,
- * and split locks. The withdrawal address can withdraw tokens from the lock but does not have any administrative powers over the lock itself. Lock owners may NOT unlock
- * tokens prematurely for whatever reason. Lock creators may choose to create standard or linear locks. Tokens locked in this contract remain locked until their respective
- * unlock date without ANY exceptions. This contract is not suited to handle rebasing tokens or tokens in which a wallet's supply changes based on total supply.
+ * @notice This contract's intended purpose is to allow users to create liquidity locks for uniswap based AMM tokens. Lock creators may extend,
+ * transfer, add to, and split liquidity locks. Lock creators may NOT unlock tokens prematurely for whatever reason. Tokens locked in this contract
+ * remain locked until their respective unlock date without ANY exceptions.
  */
 
 pragma solidity 0.8.19;
@@ -51,7 +49,7 @@ interface IMoonLabsWhitelist {
     function getIsWhitelisted(address _address) external view returns (bool);
 }
 
-contract MoonLabsTokenLocker is
+contract MoonLabsLiquidityLockerAlt is
     Initializable,
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable
@@ -61,6 +59,7 @@ contract MoonLabsTokenLocker is
     function initialize(
         address _tokenToBurn,
         address _feeCollector,
+        address _burnCollector,
         address referralAddress,
         address whitelistAddress,
         address routerAddress
@@ -68,29 +67,31 @@ contract MoonLabsTokenLocker is
         __Ownable_init();
         tokenToBurn = IERC20Upgradeable(_tokenToBurn);
         feeCollector = _feeCollector;
+        burnCollector = _burnCollector;
         referralContract = IMoonLabsReferral(referralAddress);
         whitelistContract = IMoonLabsWhitelist(whitelistAddress);
         routerContract = IDEXRouter(routerAddress);
-        ethLockPrice = .008 ether;
-        ethSplitPrice = .004 ether;
-        ethRelockPrice = .004 ether;
+        ethLockPrice = .05 ether;
+        ethSplitPrice = .025 ether;
+        ethRelockPrice = .025 ether;
         burnThreshold = .25 ether;
         codeDiscount = 10;
         codeCommission = 10;
         burnPercent = 30;
-        percentLockPrice = 30;
-        percentSplitPrice = 15;
-        percentRelockPrice = 15;
+        percentLockPrice = 50;
+        percentSplitPrice = 25;
+        percentRelockPrice = 25;
         nonce = 0;
     }
 
     /*|| === STATE VARIABLES === ||*/
-    uint public ethLockPrice; /// Price in WEI for each lock instance when paying for lock with ETH
+    uint public ethLockPrice; /// Price in WEI for each lock instance when paying for a lock with ETH
     uint public ethSplitPrice; /// Price in WEI for each lock instance when splitting lock with ETH
-    uint public ethRelockPrice; /// Price in WEI for each lock instance when relocking lock with ETH
+    uint public ethRelockPrice; /// Price in WEI for each lock instance when relocking a lock with ETH
     uint public burnThreshold; /// ETH in WEI when tokenToBurn should be bought and sent to DEAD address
     uint public burnMeter; /// Current ETH in WEI for buying and burning tokenToBurn
     address public feeCollector; /// Fee collection address for paying with token percent
+    address public burnCollector; /// Burn collection address
     uint64 public nonce; /// Unique lock identifier
     uint8 public codeDiscount; /// Discount in the percentage applied to the customer when using referral code, represented in 10s
     uint8 public codeCommission; /// Percentage of each lock purchase sent to referral code owner, represented in 10s
@@ -107,42 +108,30 @@ contract MoonLabsTokenLocker is
     struct LockInstance {
         address tokenAddress; /// Address of locked token
         address ownerAddress; /// Address of owner
-        address withdrawalAddress; /// Address of withdrawer
         uint depositAmount; /// Total deposit amount
         uint currentAmount; /// Current tokens in lock
-        uint64 startDate; /// Date when tokens start to unlock, is a Linear lock if !=0.
-        uint64 endDate; /// Date when all tokens are fully unlocked
+        uint64 unlockDate; /// Date when all tokens are fully unlocked
     }
 
     struct LockParams {
         uint depositAmount;
-        uint64 startDate;
-        uint64 endDate;
+        uint64 unlockDate;
         address ownerAddress;
-        address withdrawalAddress;
     }
 
     /*|| === MAPPINGS === ||*/
     mapping(address => uint64[]) private ownerToLock; /// Owner address to array of locks
-    mapping(address => uint64[]) private withdrawalToLock; /// Withdrawal address to array of locks
     mapping(address => uint64[]) private tokenToLock; /// Token address to array of locks
     mapping(uint64 => LockInstance) private lockInstance; /// Nonce to lock
 
     /*|| === EVENTS === ||*/
-    event LockCreated(
-        address creator,
-        address token,
-        uint64 numOfLocks,
-        uint64 nonce
-    );
-    event TokensWithdrawn(address withdrawer, uint amount, uint64 nonce);
+    event LockCreated(address creator, address token, uint64 nonce);
+    event TokensWithdrawn(address owner, uint amount, uint64 nonce);
     event LockTransferred(address from, address to, uint64 nonce);
-    event WithdrawalTransferred(address from, address to, uint64 nonce);
     event LockRelocked(
         address owner,
         uint amount,
-        uint64 startTime,
-        uint64 endTime,
+        uint64 unlockDate,
         uint64 nonce
     );
     event LockSplit(
@@ -152,38 +141,33 @@ contract MoonLabsTokenLocker is
         uint64 nonce,
         uint64 newNonce
     );
-    event TokensBurned(uint amount);
 
     /*|| === EXTERNAL FUNCTIONS === ||*/
-
     /**
      * @notice Create one or multiple lock instances for a single token. Fees are in the form of % of the token deposited.
      * @param tokenAddress Contract address of the erc20 token
-     * @param locks array of LockParams struct(s) containing:
-     *    ownerAddress The address of the owner wallet
-     *    withdrawalAddress The address of the withdrawer
+     * @param lock array of LockParams struct(s) containing:
+     *    ownerAddress The address of the receiving wallet
      *    depositAmount Number of tokens in the lock instance
-     *    startDate Date when tokens start to unlock, is a Linear lock if !=0.
-     *    endDate Date when all tokens are fully unlocked
+     *    unlockDate Date when all tokens are fully unlocked
      * @dev Since fees are not paid for in ETH, no ETH is added to the burn meter. This function supports tokens with a transfer tax, although not recommended due to potential customer confusion
      */
     function createLockPercent(
         address tokenAddress,
-        LockParams[] calldata locks
+        LockParams calldata lock
     ) external {
-        /// Calculate total deposit
-        uint totalDeposited = calculateTotalDeposited(locks);
+        uint depositAmount = lock.depositAmount;
 
         /// Calculate token fee based off total token deposit
         uint tokenFee = MathUpgradeable.mulDiv(
-            totalDeposited,
+            depositAmount,
             percentLockPrice,
             10000
         );
 
         /// Check for adequate supply in sender wallet
         require(
-            (totalDeposited + tokenFee) <=
+            (depositAmount + tokenFee) <=
                 IERC20Upgradeable(tokenAddress).balanceOf(msg.sender),
             "Token balance"
         );
@@ -191,107 +175,95 @@ contract MoonLabsTokenLocker is
         /// Transfer tokens to contract and get amount sent
         uint amountSent = transferAndCalculateWithFee(
             tokenAddress,
-            totalDeposited,
+            depositAmount,
             tokenFee
         );
 
-        /// Create the lock instances
-        createLockInstances(tokenAddress, locks, amountSent, totalDeposited);
+        createLockInstance(tokenAddress, lock, amountSent);
 
-        emit LockCreated(msg.sender, tokenAddress, uint64(locks.length), nonce - 1);
+        /// Transfer token fees to the collector address
+        transferTokensTo(tokenAddress, feeCollector, tokenFee);
+
+        emit LockCreated(msg.sender, tokenAddress, nonce);
     }
 
     /**
      * @notice Create one or multiple lock instances for a single token. If token is whitelisted then can be called with no value. Fees are in ETH.
      * @param tokenAddress Contract address of the erc20 token
-     * @param locks array of LockParams struct(s) containing:
-     *    ownerAddress The address of the owner wallet
-     *    withdrawalAddress The address of the withdrawer
+     * @param lock array of LockParams struct(s) containing:
+     *    ownerAddress The address of the receiving wallet
      *    depositAmount Number of tokens in the lock instance
-     *    startDate Date when tokens start to unlock, is a Linear lock if !=0.
-     *    endDate Date when all tokens are fully unlocked
+     *    unlockDate Date when all tokens are fully unlocked
      * @dev This function supports tokens with a transfer tax, although not recommended due to potential customer confusion
      */
     function createLockEth(
         address tokenAddress,
-        LockParams[] calldata locks
+        LockParams calldata lock
     ) external payable {
         /// If not whitelisted then check for correct ETH value
         if (!whitelistContract.getIsWhitelisted(tokenAddress)) {
-            require(
-                msg.value == ethLockPrice * locks.length,
-                "Incorrect price"
-            );
+            require(msg.value == ethLockPrice, "Incorrect price");
         } else {
             require(msg.value == 0, "Incorrect price");
         }
 
-        /// Calculate total deposit
-        uint totalDeposited = calculateTotalDeposited(locks);
+        uint depositAmount = lock.depositAmount;
 
         /// Check for adequate supply in sender wallet
         require(
-            totalDeposited <=
+            depositAmount <=
                 IERC20Upgradeable(tokenAddress).balanceOf(msg.sender),
             "Token balance"
         );
 
         /// Transfer tokens to contract and get amount sent
-        uint amountSent = transferAndCalculate(tokenAddress, totalDeposited);
+        uint amountSent = transferAndCalculate(tokenAddress, depositAmount);
 
-        /// Create the lock instances
-        createLockInstances(tokenAddress, locks, amountSent, totalDeposited);
+        createLockInstance(tokenAddress, lock, amountSent);
 
         /// Add to burn amount in ETH to burn meter
         handleBurns(msg.value);
 
-        emit LockCreated(msg.sender, tokenAddress, uint64(locks.length), nonce - 1);
+        emit LockCreated(msg.sender, tokenAddress, nonce);
     }
 
     /**
      * @notice Create one or multiple lock instances for a single token using a referral code. Fees are in ETH.
      * @param tokenAddress Contract address of the erc20 token
-     * @param locks array of LockParams struct(s) containing:
-     *    ownerAddress The address of the owner wallet
-     *    withdrawalAddress The address of the withdrawer
+     * @param lock array of LockParams struct(s) containing:
+     *    ownerAddress The address of the receiving wallet
      *    depositAmount Number of tokens in the lock instance
-     *    startDate Date when tokens start to unlock, is a Linear lock if !=0.
-     *    endDate Date when all tokens are fully unlocked
+     *    unlockDate Date when all tokens are fully unlocked
      * @param code Referral code used for discount
      * @dev This function supports tokens with a transfer tax, although not recommended due to potential customer confusion
      */
     function createLockWithCodeEth(
         address tokenAddress,
-        LockParams[] calldata locks,
+        LockParams calldata lock,
         string calldata code
     ) external payable {
         /// Check for referral valid code
         require(referralContract.checkIfActive(code), "Invalid code");
 
         /// Calculate referral commission
-        uint commission = (ethLockPrice * codeDiscount * locks.length) / 100;
+        uint commission = (ethLockPrice * codeDiscount) / 100;
 
         /// Check for correct message value
-        require(
-            msg.value == (ethLockPrice * locks.length - commission),
-            "Incorrect price"
-        );
+        require(msg.value == (ethLockPrice - commission), "Incorrect price");
 
-        /// Calculate total deposit
-        uint totalDeposited = calculateTotalDeposited(locks);
+        uint depositAmount = lock.depositAmount;
 
         /// Check for adequate supply in sender wallet
         require(
-            totalDeposited <=
+            depositAmount <=
                 IERC20Upgradeable(tokenAddress).balanceOf(msg.sender),
             "Token balance"
         );
 
         /// Transfer tokens to contract and get amount sent
-        uint amountSent = transferAndCalculate(tokenAddress, totalDeposited);
+        uint amountSent = transferAndCalculate(tokenAddress, depositAmount);
 
-        /// Create the lock instances
-        createLockInstances(tokenAddress, locks, amountSent, totalDeposited);
+        createLockInstance(tokenAddress, lock, amountSent);
 
         /// Add to burn amount in ETH to burn meter
         handleBurns(msg.value);
@@ -299,24 +271,21 @@ contract MoonLabsTokenLocker is
         /// Distribute commission
         distributeCommission(code, commission);
 
-        emit LockCreated(msg.sender, tokenAddress, uint64(locks.length), nonce - 1);
+        emit LockCreated(msg.sender, tokenAddress, nonce);
     }
 
     /**
      * @notice Claim specified number of unlocked tokens. Will delete the lock if all tokens are withdrawn.
      * @param _nonce lock instance id of the targeted lock
-     * @param amount Amount of tokens attempting to be withdrawn
+     * @param amount number of tokens attempting to be withdrawn
      */
     function withdrawUnlockedTokens(uint64 _nonce, uint amount) external {
         /// Check if the amount attempting to be withdrawn is valid
         require(amount <= getClaimableTokens(_nonce), "Withdraw balance");
         /// Revert 0 withdraw
         require(amount > 0, "Withdrawn min");
-        /// Check that sender is the withdrawal address
-        require(
-            lockInstance[_nonce].withdrawalAddress == msg.sender,
-            "Withdraw Ownership"
-        );
+        /// Check that sender is the lock owner
+        require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
 
         /// Decrement amount current by the amount being withdrawn
         lockInstance[_nonce].currentAmount -= amount;
@@ -331,64 +300,19 @@ contract MoonLabsTokenLocker is
     }
 
     /**
-     * @notice Transfer ownership of lock instance, only callable by lock owner
+     * @notice Transfer withdraw ownership of lock instance, only callable by withdraw owner
      * @param _nonce ID of desired lock instance
-     * @param _owner Address of new owner address
-     * @param _withdrawer Address of new withdrawal address
+     * @param _address Address of new withdraw address
      */
-    function transferLockOwnership(
-        uint64 _nonce,
-        address _owner,
-        address _withdrawer
-    ) external {
-        require(_owner != address(0), "Zero address");
-        /// Check that sender is the lock owner
-        require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
-        /// Revert same transfer
-        require(_owner != msg.sender, "Same transfer");
-
-        // Check if withdrawal address is different than current
-        if (lockInstance[_nonce].withdrawalAddress != _withdrawer) {
-            // Set withdrawal address
-            setLockWithdrawalAddress(_nonce, _withdrawer);
-        }
-
-        /// Delete mapping from the old owner to nonce of lock instance and pop
-        uint64[] storage ownerArray = ownerToLock[msg.sender];
-        for (uint64 i = 0; i < ownerArray.length; i++) {
-            if (ownerArray[i] == _nonce) {
-                ownerArray[i] = ownerArray[ownerArray.length - 1];
-                ownerArray.pop();
-                break;
-            }
-        }
-
-        /// Change lock owner in lock instance to new owner
-        lockInstance[_nonce].ownerAddress == _owner;
-
-        /// Map nonce of transferred lock to the new owner
-        ownerToLock[_owner].push(_nonce);
-
-        emit LockTransferred(msg.sender, _owner, _nonce);
-    }
-
-    /**
-     * @notice Transfer withdrawal address of lock instance, only callable by lock owner
-     * @param _nonce ID of desired lock instance
-     * @param _address Address of new withdrawal address
-     */
-    function setLockWithdrawalAddress(uint64 _nonce, address _address) public {
+    function transferLockOwnership(uint64 _nonce, address _address) external {
         require(_address != address(0), "Zero address");
         /// Check that sender is the lock owner
         require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
         /// Revert same transfer
-        require(
-            _address != lockInstance[_nonce].withdrawalAddress,
-            "Same transfer"
-        );
+        require(_address != msg.sender, "Same transfer");
 
         /// Delete mapping from the old owner to nonce of lock instance and pop
-        uint64[] storage withdrawArray = withdrawalToLock[msg.sender];
+        uint64[] storage withdrawArray = ownerToLock[msg.sender];
         for (uint64 i = 0; i < withdrawArray.length; i++) {
             if (withdrawArray[i] == _nonce) {
                 withdrawArray[i] = withdrawArray[withdrawArray.length - 1];
@@ -398,30 +322,28 @@ contract MoonLabsTokenLocker is
         }
 
         /// Change lock owner in lock instance to new owner
-        lockInstance[_nonce].withdrawalAddress == _address;
+        lockInstance[_nonce].ownerAddress == _address;
 
         /// Map nonce of transferred lock to the new owner
-        withdrawalToLock[_address].push(_nonce);
+        ownerToLock[_address].push(_nonce);
 
-        emit WithdrawalTransferred(msg.sender, _address, _nonce);
+        emit LockTransferred(msg.sender, _address, _nonce);
     }
 
     /**
-     * @notice Relock or add tokens to an existing lock. If not whitelisted. fees are in ETH. Start date for standard locks are immutable.
+     * @notice Relock or add tokens to an existing lock. If not whitelisted, fees are in ETH.
      * @param _nonce lock instance id of the targeted lock
-     * @param amount number of tokens to relock, if any
-     * @param startTime time in seconds to add to the existing start date
-     * @param endTime time in seconds to add to the existing end date
+     * @param amount amount of tokens to relock, if any
+     * @param _unlockDate time in seconds to add to the existing end date
      */
     function relockETH(
         uint64 _nonce,
         uint amount,
-        uint64 startTime,
-        uint64 endTime
+        uint64 _unlockDate
     ) external payable {
         address tokenAddress = lockInstance[_nonce].tokenAddress;
 
-        /// Check if token is whitelisted
+        /// Check if the token is whitelisted
         if (whitelistContract.getIsWhitelisted(tokenAddress)) {
             /// Check if msg value is 0
             require(msg.value == 0, "Incorrect Price");
@@ -429,22 +351,17 @@ contract MoonLabsTokenLocker is
             /// Check if msg value is correct
             require(msg.value == ethRelockPrice, "Incorrect Price");
         }
-
         /// Check that sender is the lock owner
         require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
-
         /// Check if sender has adequate token blance if sender is adding tokens to the lock
         if (amount > 0)
             require(
                 IERC20Upgradeable(tokenAddress).balanceOf(msg.sender) >= amount,
                 "Token balance"
             );
-        /// Standard lock start dates cannot be modified
-        if (lockInstance[_nonce].startDate == 0)
-            require(startTime == 0, "Start date");
         /// Check for end date upper bounds
         require(
-            endTime + lockInstance[_nonce].endDate < 10000000000,
+            _unlockDate + lockInstance[_nonce].unlockDate < 10000000000,
             "End date"
         );
 
@@ -454,47 +371,38 @@ contract MoonLabsTokenLocker is
             lockInstance[_nonce].currentAmount += amountSent;
             lockInstance[_nonce].depositAmount += amountSent;
         }
-
-        if (startTime > 0) lockInstance[_nonce].startDate += startTime;
-        if (endTime > 0) lockInstance[_nonce].endDate += endTime;
+        if (_unlockDate > 0) lockInstance[_nonce].unlockDate += _unlockDate;
 
         /// Add to burn amount in ETH to burn meter
         handleBurns(msg.value);
 
-        emit LockRelocked(msg.sender, amount, startTime, endTime, _nonce);
+        emit LockRelocked(msg.sender, amount, _unlockDate, _nonce);
     }
 
     /**
-     * @notice Relock or add tokens to an existing lock. If not whitelisted, fees are in % of tokens in the lock. Start date for standard locks immutable.
+     * @notice Relock or add tokens to an existing lock. If not whitelisted, fees are in % of lp tokens in the lock.
      * @param _nonce lock instance id of the targeted lock
      * @param amount amount of tokens to relock, if any
-     * @param startTime time in seconds to add to the existing start date
-     * @param endTime time in seconds to add to the existing end date
+     * @param _unlockDate time in seconds to add to the existing end date
      */
     function relockPercent(
         uint64 _nonce,
         uint amount,
-        uint64 startTime,
-        uint64 endTime
+        uint64 _unlockDate
     ) external {
         address tokenAddress = lockInstance[_nonce].tokenAddress;
 
         /// Check that sender is the lock owner
         require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
-
         /// Check if sender has adequate token blance if sender is adding tokens to the lock
         if (amount > 0)
             require(
                 IERC20Upgradeable(tokenAddress).balanceOf(msg.sender) >= amount,
                 "Token balance"
             );
-        /// Standard lock start dates cannot be modified
-        if (lockInstance[_nonce].startDate == 0)
-            require(startTime == 0, "Start date");
-
         /// Check for end date upper bounds
         require(
-            endTime + lockInstance[_nonce].endDate < 10000000000,
+            _unlockDate + lockInstance[_nonce].unlockDate < 10000000000,
             "End date"
         );
 
@@ -504,11 +412,9 @@ contract MoonLabsTokenLocker is
             lockInstance[_nonce].currentAmount += amountSent;
             lockInstance[_nonce].depositAmount += amountSent;
         }
+        if (_unlockDate > 0) lockInstance[_nonce].unlockDate += _unlockDate;
 
-        if (startTime > 0) lockInstance[_nonce].startDate += startTime;
-        if (endTime > 0) lockInstance[_nonce].endDate += endTime;
-
-        /// Check if token is not whitelisted
+        /// Check if the token is not whitelisted
         if (!whitelistContract.getIsWhitelisted(tokenAddress)) {
             /// Calculate the token fee based on total tokens in lock
             uint tokenFee = MathUpgradeable.mulDiv(
@@ -516,27 +422,25 @@ contract MoonLabsTokenLocker is
                 percentRelockPrice,
                 10000
             );
-
             /// Deduct fee from token balance
             lockInstance[_nonce].currentAmount -= tokenFee;
             lockInstance[_nonce].depositAmount -= tokenFee;
-
             /// Transfer token fees to the collector address
             transferTokensTo(tokenAddress, feeCollector, tokenFee);
         }
 
-        emit LockRelocked(msg.sender, amount, startTime, endTime, _nonce);
+        emit LockRelocked(msg.sender, amount, _unlockDate, _nonce);
     }
 
     /**
-     * @notice Split a current lock into two separate locks amount determined by the sender. If not whitelisted, fees are in eth. This function supports both linear and standard locks.
-     * @param to address of split receiver
+     * @notice Split a current lock into two separate locks amount determined by the sender. If not whitelisted, fees are in ETH. This function supports both linear and standard locks.
+     * @param to address of the split receiver
      * @param _nonce ID of desired lock instance
+     * @param amount number of tokens sent to new lock
      * @param amount number of tokens sent to new lock
      */
     function splitLockETH(
         address to,
-        address withdrawalAddress,
         uint64 _nonce,
         uint amount
     ) external payable {
@@ -544,7 +448,7 @@ contract MoonLabsTokenLocker is
         uint depositAmount = lockInstance[_nonce].depositAmount;
         address tokenAddress = lockInstance[_nonce].tokenAddress;
 
-        /// Check if token is whitelisted
+        /// Check if the token is whitelisted
         if (whitelistContract.getIsWhitelisted(tokenAddress)) {
             /// Check if msg value is 0
             require(msg.value == 0, "Incorrect Price");
@@ -556,13 +460,13 @@ contract MoonLabsTokenLocker is
         /// Check that sender is the lock owner
         require(lockInstance[_nonce].ownerAddress == msg.sender, "Onwership");
         /// Check that amount is less than the current amount in the lock
-        require(currentAmount > amount, "Balance");
+        require(currentAmount > amount, "Transfer balance");
         /// Check that amount is not 0
         require(amount > 0, "Zero transfer");
 
         /// To maintain linear lock integrity, the deposit amount must maintain proportional to the current amount
 
-        /// Convert amount to corresponding deposit amount and subtract from lock initial deposit
+        /// Convert amount to corresponding deposit amount and subtract from lock inital deposit
         lockInstance[_nonce].depositAmount -= MathUpgradeable.mulDiv(
             depositAmount,
             amount,
@@ -577,18 +481,14 @@ contract MoonLabsTokenLocker is
         lockInstance[nonce] = LockInstance(
             tokenAddress,
             to,
-            withdrawalAddress,
             amount,
             MathUpgradeable.mulDiv(depositAmount, amount, currentAmount),
-            lockInstance[_nonce].startDate,
-            lockInstance[_nonce].endDate
+            lockInstance[_nonce].unlockDate
         );
         /// Map token address to nonce
         tokenToLock[tokenAddress].push(nonce);
         /// Map owner address to nonce
         ownerToLock[to].push(nonce);
-        /// Map withdrawal address to nonce
-        withdrawalToLock[withdrawalAddress].push(nonce);
 
         /// Add to burn amount in ETH to burn meter
         handleBurns(msg.value);
@@ -597,18 +497,13 @@ contract MoonLabsTokenLocker is
     }
 
     /**
-     * @notice This function splits a current lock into two separate locks amount determined by the sender. If not whitelisted, fees are in % of tokens in the lock. This function supports both linear and standard locks.
-     * @param to address of split receiver
+     * @notice This function splits a current lock into two separate locks amount determined by the sender. If not whitelisted, fees are in % of lp tokens in the lock.
+     * @param to address of the split receiver
      * @param _nonce ID of desired lock instance
      * @param amount number of tokens sent to new lock
      * @dev tokens are deducted from the original lock
      */
-    function splitLockPercent(
-        address to,
-        address withdrawalAddress,
-        uint64 _nonce,
-        uint amount
-    ) external {
+    function splitLockPercent(address to, uint64 _nonce, uint amount) external {
         uint currentAmount = lockInstance[_nonce].currentAmount;
         uint depositAmount = lockInstance[_nonce].depositAmount;
         address tokenAddress = lockInstance[_nonce].tokenAddress;
@@ -616,11 +511,11 @@ contract MoonLabsTokenLocker is
         /// Check that sender is the lock owner
         require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
         /// Check that amount is less than the current amount in the lock
-        require(currentAmount > amount, "Balance");
+        require(currentAmount > amount, "Transfer balance");
         /// Check that amount is not 0
         require(amount > 0, "Zero transfer");
 
-        /// Check if token is not whitelisted
+        /// Check if the token is not whitelisted
         if (!whitelistContract.getIsWhitelisted(tokenAddress)) {
             /// Calculate the token fee based on total tokens locked
             uint tokenFee = MathUpgradeable.mulDiv(
@@ -652,18 +547,14 @@ contract MoonLabsTokenLocker is
         lockInstance[nonce] = LockInstance(
             tokenAddress,
             to,
-            withdrawalAddress,
             amount,
             MathUpgradeable.mulDiv(depositAmount, amount, currentAmount),
-            lockInstance[_nonce].startDate,
-            lockInstance[_nonce].endDate
+            lockInstance[_nonce].unlockDate
         );
         /// Map token address to nonce
         tokenToLock[tokenAddress].push(nonce);
         /// Map owner address to nonce
         ownerToLock[to].push(nonce);
-        /// Map withdrawal address to nonce
-        withdrawalToLock[withdrawalAddress].push(nonce);
 
         emit LockSplit(msg.sender, to, amount, _nonce, nonce);
     }
@@ -686,6 +577,15 @@ contract MoonLabsTokenLocker is
     function setFeeCollector(address _feeCollector) external onlyOwner {
         require(_feeCollector != address(0), "Zero Address");
         feeCollector = _feeCollector;
+    }
+
+    /**
+     * @notice Set the burn collection address. Owner only function.
+     * @param _burnCollector Address of the burn collector
+     */
+    function setBurnCollector(address _burnCollector) external onlyOwner {
+        require(_burnCollector != address(0), "Zero Address");
+        burnCollector = _burnCollector;
     }
 
     /**
@@ -816,17 +716,6 @@ contract MoonLabsTokenLocker is
     }
 
     /**
-     * @notice Retrieve an array of lock IDs tied to a single withdrawal address
-     * @param withdrawalAddress address of desired withdraw owner
-     * @return Array of lock instance IDs
-     */
-    function getNonceFromWithdrawalAddress(
-        address withdrawalAddress
-    ) external view returns (uint64[] memory) {
-        return withdrawalToLock[withdrawalAddress];
-    }
-
-    /**
      * @notice Retrieve an array of lock IDs tied to a single token address
      * @param tokenAddress token address of desired ERC20 token
      * @return Array of lock instance IDs
@@ -840,138 +729,64 @@ contract MoonLabsTokenLocker is
     /**
      * @notice Retrieve information of a single lock instance
      * @param _nonce ID of desired lock instance
-     * @return token address, owner address, withdrawal address, deposit amount, current amount, start date, end date
+     * @return token address, owner address, deposit amount, current amount, end date
      */
     function getLock(
         uint64 _nonce
-    )
-        external
-        view
-        returns (address, address, address, uint, uint, uint64, uint64)
-    {
+    ) external view returns (address, address, uint, uint, uint64) {
         return (
             lockInstance[_nonce].tokenAddress,
             lockInstance[_nonce].ownerAddress,
-            lockInstance[_nonce].withdrawalAddress,
             lockInstance[_nonce].depositAmount,
             lockInstance[_nonce].currentAmount,
-            lockInstance[_nonce].startDate,
-            lockInstance[_nonce].endDate
+            lockInstance[_nonce].unlockDate
         );
     }
 
     /*|| === PUBLIC FUNCTIONS === ||*/
     /**
-     * @notice Retrieve unlocked tokens for a lock instance
-     * @param _nonce ID of desired lock instance
-     * @return Number of unlocked tokens
-     */
-    function getClaimableTokens(uint64 _nonce) public view returns (uint) {
-        uint currentAmount = lockInstance[_nonce].currentAmount;
-        uint64 endDate = lockInstance[_nonce].endDate;
-        uint64 startDate = lockInstance[_nonce].startDate;
-
-        /// Check if the token balance is 0
-        if (currentAmount <= 0) return 0;
-
-        /// Check if the lock is a standard lock
-        if (startDate == 0)
-            return endDate <= block.timestamp ? currentAmount : 0;
-
-        /// If none of the above then the token is a linear lock
-        return calculateLinearWithdraw(_nonce);
-    }
-
-    /*|| === PRIVATE FUNCTIONS === ||*/
-    /**
-     * @notice Create single or multiple lock instances, maps nonce to lock instance, token address to nonce, owner address to nonce. Checks for valid
-     * start date, end date, and deposit amount.
+     * @notice Create a single lock instance, maps nonce to lock instance, token address to nonce, owner address to nonce. Checks for valid
+     * unlock date, and deposit amount.
      * @param tokenAddress ID of desired lock instance
-     * @param amountSent actual amount of tokens sent to the smart contract
-     * @param totalDeposited hypothetical amount of tokens sent to the smart contract
-     * @param locks array of LockParams struct(s) containing:
-     *    ownerAddress The address of the owner wallet
-     *    withdrawalAddress The address of the withdrawer
+     * @param lock array of LockParams struct(s) containing:
+     *    ownerAddress The address of the receiving wallet
      *    depositAmount Number of tokens in the lock instance
-     *    startDate Date when tokens start to unlock, is a Linear lock if !=0.
-     *    endDate Date when all tokens are fully unlocked
+     *    unlockDate Date when all tokens are fully unlocked
      */
-    function createLockInstances(
+    function createLockInstance(
         address tokenAddress,
-        LockParams[] calldata locks,
-        uint amountSent,
-        uint totalDeposited
+        LockParams calldata lock,
+        uint amountSent
     ) private {
-        uint64 _nonce = nonce;
-        for (uint64 i = 0; i < locks.length; i++) {
-            uint depositAmount = locks[i].depositAmount;
-            uint64 startDate = locks[i].startDate;
-            uint64 endDate = locks[i].endDate;
-            require(startDate < endDate, "Start date");
-            require(endDate < 10000000000, "End date");
-            require(locks[i].depositAmount > 0, "Min deposit");
-            require(locks[i].ownerAddress != address(0), "Zero address");
-            require(locks[i].withdrawalAddress != address(0), "Zero address");
+        uint64 unlockDate = lock.unlockDate;
+        require(unlockDate < 10000000000, "End date");
+        require(amountSent > 0, "Min deposit");
+        require(lock.ownerAddress != address(0), "Zero address");
 
-            /// Create a new Lock Instance and map to nonce
-            lockInstance[_nonce] = LockInstance(
-                tokenAddress,
-                locks[i].ownerAddress,
-                locks[i].withdrawalAddress,
-                MathUpgradeable.mulDiv(
-                    amountSent,
-                    depositAmount,
-                    totalDeposited
-                ),
-                MathUpgradeable.mulDiv(
-                    amountSent,
-                    depositAmount,
-                    totalDeposited
-                ),
-                startDate,
-                endDate
-            );
-            /// Map token address to nonce
-            tokenToLock[tokenAddress].push(_nonce);
-            /// Map owner address to nonce
-            ownerToLock[locks[i].ownerAddress].push(_nonce);
-            /// Map withdrawal address to nonce
-            withdrawalToLock[locks[i].withdrawalAddress].push(_nonce);
-
-            /// Increment nonce
-            _nonce++;
-        }
-        nonce = _nonce;
-    }
-
-    /**
-     * @notice claculates total deposit of given lock array
-     * @param locks array of LockParams struct(s) containing:
-     *    withdrawalAddress The address of the receiving wallet
-     *    depositAmount Number of tokens in the vesting instance
-     *    startDate Date when tokens start to unlock, is Linear lock if !=0.
-     *    endDate Date when all tokens are fully unlocked
-     * @return total deposit amount
-     */
-    function calculateTotalDeposited(
-        LockParams[] memory locks
-    ) private pure returns (uint) {
-        uint totalDeposited;
-        for (uint32 i = 0; i < locks.length; i++) {
-            totalDeposited += locks[i].depositAmount;
-        }
-        return totalDeposited;
+        /// Create a new Lock Instance and map to nonce
+        lockInstance[nonce] = LockInstance(
+            tokenAddress,
+            lock.ownerAddress,
+            amountSent,
+            amountSent,
+            unlockDate
+        );
+        /// Map token address to nonce
+        tokenToLock[tokenAddress].push(nonce);
+        /// Map owner address to nonce
+        ownerToLock[lock.ownerAddress].push(nonce);
+        nonce++;
     }
 
     /**
      * @notice transfers tokens to contract and calcualtes amount sent
      * @param tokenAddress address of the token
-     * @param totalDeposited total tokens attempting to be sent
+     * @param amount total tokens attempting to be sent
      * @return total amount sent
      */
     function transferAndCalculate(
         address tokenAddress,
-        uint totalDeposited
+        uint amount
     ) private returns (uint) {
         /// Get balance before sending tokens
         uint previousBal = IERC20Upgradeable(tokenAddress).balanceOf(
@@ -979,7 +794,7 @@ contract MoonLabsTokenLocker is
         );
 
         /// Transfer tokens from sender to contract
-        transferTokensFrom(tokenAddress, msg.sender, totalDeposited);
+        transferTokensFrom(tokenAddress, msg.sender, amount);
 
         /// Calculate amount sent based off before and after balance
         return
@@ -990,13 +805,13 @@ contract MoonLabsTokenLocker is
     /**
      * @notice transfers tokens to contract and calcualtes amount sent with fees
      * @param tokenAddress address of the token
-     * @param totalDeposited total tokens attempting to be sent
+     * @param amount total tokens attempting to be sent
      * @param tokenFee fee taken for locking
      * @return total amount sent
      */
     function transferAndCalculateWithFee(
         address tokenAddress,
-        uint totalDeposited,
+        uint amount,
         uint tokenFee
     ) private returns (uint) {
         /// Get balance before sending tokens
@@ -1005,7 +820,7 @@ contract MoonLabsTokenLocker is
         );
 
         /// Transfer tokens from sender to contract
-        transferTokensFrom(tokenAddress, msg.sender, totalDeposited + tokenFee);
+        transferTokensFrom(tokenAddress, msg.sender, amount + tokenFee);
 
         /// Transfer token fees to the collector address
         transferTokensTo(tokenAddress, feeCollector, tokenFee);
@@ -1016,6 +831,24 @@ contract MoonLabsTokenLocker is
             previousBal;
     }
 
+    /**
+     * @notice Retrieve unlocked tokens for a lock instance
+     * @param _nonce ID of desired lock instance
+     * @return Number of unlocked tokens
+     */
+    function getClaimableTokens(uint64 _nonce) public view returns (uint) {
+        uint currentAmount = lockInstance[_nonce].currentAmount;
+
+        /// Check if the token balance is 0
+        if (currentAmount <= 0) return 0;
+
+        return
+            lockInstance[_nonce].unlockDate <= block.timestamp
+                ? currentAmount
+                : 0;
+    }
+
+    /*|| === PRIVATE FUNCTIONS === ||*/
     /**
      * @dev Transfer tokens from address to this contract. Used for abstraction and readability.
      * @param tokenAddress token address of ERC20 to be transferred
@@ -1049,28 +882,20 @@ contract MoonLabsTokenLocker is
     }
 
     /**
-     * @notice Buy Moon Labs native token if burn threshold is met or crossed and send to the dead address
+     * @notice Send eth to burn collector
      * @param value amount added to burn meter
      */
     function handleBurns(uint value) private {
         burnMeter += MathUpgradeable.mulDiv(value, burnPercent, 100);
         /// Check if the threshold is met
         if (burnMeter >= burnThreshold) {
-            /// Buy tokenToBurn via Uniswap router and send to the dead address
-            address[] memory path = new address[](2);
-            path[0] = routerContract.WETH();
-            path[1] = address(tokenToBurn);
-            uint[] memory amounts = routerContract.swapExactETHForTokens{
-                value: burnMeter
-            }(
-                0,
-                path,
-                0x000000000000000000000000000000000000dEaD,
-                block.timestamp
-            );
-            /// Reset burn meter
-            burnMeter = 0;
-            emit TokensBurned(amounts[amounts.length - 1]);
+            /// Send eth to burn wallet
+            (bool sent, ) = payable(burnCollector).call{value: burnMeter}("");
+            /// Check if eth successfully sent
+            if (sent) {
+                /// Reset burn meter
+                burnMeter = 0;
+            }
         }
     }
 
@@ -1110,18 +935,6 @@ contract MoonLabsTokenLocker is
             }
         }
 
-        /// Delete mapping from the withdrawal address to nonce of lock instance and pop
-        uint64[] storage withdrawArray = withdrawalToLock[
-            lockInstance[_nonce].withdrawalAddress
-        ];
-        for (uint64 i = 0; i < withdrawArray.length; i++) {
-            if (withdrawArray[i] == _nonce) {
-                withdrawArray[i] = withdrawArray[withdrawArray.length - 1];
-                withdrawArray.pop();
-                break;
-            }
-        }
-
         /// Delete mapping from the token address to nonce of the lock instance and pop
         uint64[] storage tokenAddress = tokenToLock[
             lockInstance[_nonce].tokenAddress
@@ -1135,41 +948,5 @@ contract MoonLabsTokenLocker is
         }
         /// Delete lock instance map
         delete lockInstance[_nonce];
-    }
-
-    /**
-     * @notice Calculate the number of unlocked tokens within a linear lock.
-     * @param _nonce ID of desired lock instance
-     * @return unlockedTokens number of unlocked tokens
-     */
-    function calculateLinearWithdraw(
-        uint64 _nonce
-    ) private view returns (uint) {
-        uint currentAmount = lockInstance[_nonce].currentAmount;
-        uint depositAmount = lockInstance[_nonce].depositAmount;
-        uint64 endDate = lockInstance[_nonce].endDate;
-        uint64 startDate = lockInstance[_nonce].startDate;
-        uint64 timeBlock = endDate - startDate; /// Time from start date to end date
-        uint64 timeElapsed = 0; /// Time since tokens started to unlock
-
-        if (endDate <= block.timestamp) {
-            /// Set time elapsed to time block
-            timeElapsed = timeBlock;
-        } else if (startDate < block.timestamp) {
-            /// Set time elapsed to the time elapsed
-            timeElapsed = uint64(block.timestamp) - startDate;
-        }
-
-        /// Math to calculate linear unlock
-        /**
-    This formula will only return a negative number when the current amount is less than what can be withdrawn
-
-      Deposit Amount x Time Elapsed
-      -----------------------------   -   (Deposit Amount - Current Amount)
-               Time Block
-    **/
-        return
-            MathUpgradeable.mulDiv(depositAmount, timeElapsed, timeBlock) -
-            (depositAmount - currentAmount);
     }
 }
