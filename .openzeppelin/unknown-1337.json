@@ -2,7 +2,7 @@
   "manifestVersion": "3.2",
   "admin": {
     "address": "0x7036124464A2d2447516309169322c8498ac51e3",
-    "txHash": "0x9635af786f588924f14317268d70bd34f0b652b444b3e8b6724b07f80ffd34e5"
+    "txHash": "0x6141d16370a8a3bc4050862b4314173cf77e1f4ee8b089a58738b95666c9e849"
   },
   "proxies": [
     {
@@ -516,16 +516,6 @@
       "kind": "transparent"
     },
     {
-      "address": "0x21915b79E1d334499272521a3508061354D13FF0",
-      "txHash": "0x4cf3b6d07715e9b82b3d5b77930110b5e7a6ec9d690a58ffa3f8c63532d6beff",
-      "kind": "transparent"
-    },
-    {
-      "address": "0x1c39BA375faB6a9f6E0c01B9F49d488e101C2011",
-      "txHash": "0x250ef71b664a40bfe17877348979f5db3d793385f94d4cd0f8e910ee8d7074c1",
-      "kind": "transparent"
-    },
-    {
       "address": "0x532802f2F9E0e3EE9d5Ba70C35E1F43C0498772D",
       "txHash": "0x325661a1f2a96ea66e3fad941ae64920a874a30dcdbb457cb153b5d7568e9c43",
       "kind": "transparent"
@@ -546,43 +536,73 @@
       "kind": "transparent"
     },
     {
+      "address": "0x04F339eC4D75Cf2833069e6e61b60eF56461CD7C",
+      "txHash": "0x8c50e99a97711fc1f52f37576d6783291153e3dbd199165d26cb05459cf3d262",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xB1c05b498Cb58568B2470369FEB98B00702063dA",
+      "txHash": "0xbce153497f29eab8804c7f15b87d5da1bbd67487a7e42ec272cf0bcf5c9c4e7c",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x21915b79E1d334499272521a3508061354D13FF0",
+      "txHash": "0xa1162a0b480966e6aed13fcafbd01510909511573b1841246d4bc480d1a0a44d",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x1c39BA375faB6a9f6E0c01B9F49d488e101C2011",
+      "txHash": "0xddfb00887ee74f5dda5659339e654ab218eab2c6ef533bcab8cc6a4bba9e9f27",
+      "kind": "transparent"
+    },
+    {
       "address": "0xa195ACcEB1945163160CD5703Ed43E4f78176a54",
-      "txHash": "0xddff4d6876d1fcee84ac5512d389767eed2695b81c0e25717ec1b9f764b5cd32",
+      "txHash": "0x97f1887de6f5a47d82838d54b04608508bdfc8ad946c19cf1579bea0a7908135",
       "kind": "transparent"
     },
     {
       "address": "0xf4AE7E15B1012edceD8103510eeB560a9343AFd3",
-      "txHash": "0x4e17f5fd43821fd7b0d5a3ef8dfedb996114a062f985d3b8ab7823a8163a93a3",
+      "txHash": "0x2f66d28bce188b9326d2a1121742f8cefbf2cd25528ceedc13b11d4f2815e5c6",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x5E5713a0d915701F464DEbb66015adD62B2e6AE9",
+      "txHash": "0xdc0c9a68a6bc9da43b3270a7eea502d4bdac986858cf732d84ab41824e318545",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x43cA9bAe8dF108684E5EAaA720C25e1b32B0A075",
+      "txHash": "0xaf2d451f809af5cb0b889cc7622a5bff7ab807338befdb86d3277b9591ff9b18",
       "kind": "transparent"
     },
     {
       "address": "0xeE1eb820BeeCED56657bA74fa8D70748D7A6756C",
-      "txHash": "0x0212d21540b3afa371d748e926b940542aa4db78de5c57275518fb48e3d8fd42",
+      "txHash": "0x63b11dbd94c824d9631d30515a0e56b6372ef7477fa58846dba4be3d4c238f63",
       "kind": "transparent"
     },
     {
       "address": "0x0724F18B2aA7D6413D3fDcF6c0c27458a8170Dd9",
-      "txHash": "0xa4342e1b32f428ce0da6b430bd42c4c5e7231137197364bc19f502c6716b3006",
+      "txHash": "0xead8dcd36a8abc976b3a22aa1ff8d453f5b7523c59875c2d2b1bd012f4f4a247",
       "kind": "transparent"
     },
     {
       "address": "0x6D712CB50297b97b79dE784d10F487C00d7f8c2C",
-      "txHash": "0x96488b26d28c7e14c450f24d49e6a20ab9fda27329e207c210e22cb49d206f87",
+      "txHash": "0xc79b4a9bc1ea2b64bfa319e6116a877914a8c099773c6f2e504317b94b6b7d08",
       "kind": "transparent"
     },
     {
       "address": "0x6F9679BdF5F180a139d01c598839a5df4860431b",
-      "txHash": "0x4b1386fdd9f2067c4de854d6896d545b98d8cef344ba612269676934f66f120b",
+      "txHash": "0x178047199c412eafff4a48f0e68dcc986edc3647acbfee288f0744d9630660c3",
       "kind": "transparent"
     },
     {
       "address": "0xc981ec845488b8479539e6B22dc808Fb824dB00a",
-      "txHash": "0x533c782a706ea6a6b7ccd97ef1cece933e8266e3669b5e24ec8b896c92444243",
+      "txHash": "0x6bd93533db75a2345ab3517875c53376c73106ae0be11af4b3bfefa2797aea46",
       "kind": "transparent"
     },
     {
       "address": "0x97fd63D049089cd70D9D139ccf9338c81372DE68",
-      "txHash": "0x6a711ede2a8c601d1bc5e237e4dd27cbb6a0cc817fed81447d854897fe914925",
+      "txHash": "0xb97df2e4f4c646f9b71d8afe231cf27a7f0cc2a33541ee28a511be8243c0fd0e",
       "kind": "transparent"
     }
   ],
@@ -5309,7 +5329,7 @@
     },
     "f6b165762915d9cd84756d115539b470f71d092278999f8d98312a6c0b3d7333": {
       "address": "0x696358bBb1a743052E0E87BeD78AAd9d18f0e1F4",
-      "txHash": "0xd86e1b3c41b0ec44981ad76d0a202d13787122f0f97ceb43d6697a0a9d1acc73",
+      "txHash": "0x7261e429ea8d0ebc8353a2fc39dc55c24840c52eb9ac928b80dc3bf833fb090d",
       "layout": {
         "solcVersion": "0.8.17",
         "storage": [
@@ -5963,9 +5983,307 @@
         }
       }
     },
-    "a69ce9a86cf2c6f52b903129605e318eed5fbfb57cb4d1643b777a7bcb0120ac": {
+    "59f9336e84b420a8c462e5fc99ab7fc9b0c4b57d52f21bca9837dccf28d2b946": {
+      "address": "0x5E5713a0d915701F464DEbb66015adD62B2e6AE9",
+      "txHash": "0xe4fc196cd66c5bd4b04590393ebfce40e5f409da013b5bd1365de2eff31a0af7",
+      "layout": {
+        "solcVersion": "0.8.17",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:67"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\utils\\ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:94"
+          },
+          {
+            "label": "_status",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_uint256",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\ReentrancyGuardUpgradeable.sol:38"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\ReentrancyGuardUpgradeable.sol:80"
+          },
+          {
+            "label": "ethLockPrice",
+            "offset": 0,
+            "slot": "151",
+            "type": "t_uint256",
+            "contract": "MoonLabsVesting",
+            "src": "contracts\\MoonLabsVesting.sol:91"
+          },
+          {
+            "label": "burnThreshold",
+            "offset": 0,
+            "slot": "152",
+            "type": "t_uint256",
+            "contract": "MoonLabsVesting",
+            "src": "contracts\\MoonLabsVesting.sol:92"
+          },
+          {
+            "label": "burnMeter",
+            "offset": 0,
+            "slot": "153",
+            "type": "t_uint256",
+            "contract": "MoonLabsVesting",
+            "src": "contracts\\MoonLabsVesting.sol:93"
+          },
+          {
+            "label": "feeCollector",
+            "offset": 0,
+            "slot": "154",
+            "type": "t_address",
+            "contract": "MoonLabsVesting",
+            "src": "contracts\\MoonLabsVesting.sol:95"
+          },
+          {
+            "label": "nonce",
+            "offset": 20,
+            "slot": "154",
+            "type": "t_uint64",
+            "contract": "MoonLabsVesting",
+            "src": "contracts\\MoonLabsVesting.sol:96"
+          },
+          {
+            "label": "codeDiscount",
+            "offset": 28,
+            "slot": "154",
+            "type": "t_uint8",
+            "contract": "MoonLabsVesting",
+            "src": "contracts\\MoonLabsVesting.sol:96"
+          },
+          {
+            "label": "burnPercent",
+            "offset": 29,
+            "slot": "154",
+            "type": "t_uint8",
+            "contract": "MoonLabsVesting",
+            "src": "contracts\\MoonLabsVesting.sol:100"
+          },
+          {
+            "label": "mlabDiscountPercent",
+            "offset": 30,
+            "slot": "154",
+            "type": "t_uint8",
+            "contract": "MoonLabsVesting",
+            "src": "contracts\\MoonLabsVesting.sol:102"
+          },
+          {
+            "label": "percentLockPrice",
+            "offset": 0,
+            "slot": "155",
+            "type": "t_uint16",
+            "contract": "MoonLabsVesting",
+            "src": "contracts\\MoonLabsVesting.sol:104"
+          },
+          {
+            "label": "mlabToken",
+            "offset": 2,
+            "slot": "155",
+            "type": "t_contract(IERC20Upgradeable)451",
+            "contract": "MoonLabsVesting",
+            "src": "contracts\\MoonLabsVesting.sol:105"
+          },
+          {
+            "label": "routerContract",
+            "offset": 0,
+            "slot": "156",
+            "type": "t_contract(IDEXRouter)3033",
+            "contract": "MoonLabsVesting",
+            "src": "contracts\\MoonLabsVesting.sol:109"
+          },
+          {
+            "label": "referralContract",
+            "offset": 0,
+            "slot": "157",
+            "type": "t_contract(IMoonLabsReferral)12642",
+            "contract": "MoonLabsVesting",
+            "src": "contracts\\MoonLabsVesting.sol:111"
+          },
+          {
+            "label": "whitelistContract",
+            "offset": 0,
+            "slot": "158",
+            "type": "t_contract(IMoonLabsWhitelist)12650",
+            "contract": "MoonLabsVesting",
+            "src": "contracts\\MoonLabsVesting.sol:116"
+          },
+          {
+            "label": "withdrawalToLock",
+            "offset": 0,
+            "slot": "159",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
+            "contract": "MoonLabsVesting",
+            "src": "contracts\\MoonLabsVesting.sol:133"
+          },
+          {
+            "label": "tokenToLock",
+            "offset": 0,
+            "slot": "160",
+            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
+            "contract": "MoonLabsVesting",
+            "src": "contracts\\MoonLabsVesting.sol:134"
+          },
+          {
+            "label": "vestingInstance",
+            "offset": 0,
+            "slot": "161",
+            "type": "t_mapping(t_uint64,t_struct(VestingInstance)12795_storage)",
+            "contract": "MoonLabsVesting",
+            "src": "contracts\\MoonLabsVesting.sol:136"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_array(t_uint64)dyn_storage": {
+            "label": "uint64[]",
+            "numberOfBytes": "32"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_contract(IDEXRouter)3033": {
+            "label": "contract IDEXRouter",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IERC20Upgradeable)451": {
+            "label": "contract IERC20Upgradeable",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IMoonLabsReferral)12642": {
+            "label": "contract IMoonLabsReferral",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IMoonLabsWhitelist)12650": {
+            "label": "contract IMoonLabsWhitelist",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_address,t_array(t_uint64)dyn_storage)": {
+            "label": "mapping(address => uint64[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint64,t_struct(VestingInstance)12795_storage)": {
+            "label": "mapping(uint64 => struct MoonLabsVesting.VestingInstance)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(VestingInstance)12795_storage": {
+            "label": "struct MoonLabsVesting.VestingInstance",
+            "members": [
+              {
+                "label": "tokenAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "withdrawalAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "depositAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "withdrawnAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "startDate",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "endDate",
+                "type": "t_uint64",
+                "offset": 8,
+                "slot": "4"
+              }
+            ],
+            "numberOfBytes": "160"
+          },
+          "t_uint16": {
+            "label": "uint16",
+            "numberOfBytes": "2"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    },
+    "f1f6934486608a319c22d1a6123e791eacbd95d7b0158fe96dde5e83be960e4d": {
       "address": "0x9e7F7d0E8b8F38e3CF2b3F7dd362ba2e9E82baa4",
-      "txHash": "0x2731c62d0870e2b1d96f3a959e28e1e1d8982b997037a12cf49eb3fada35e86f",
+      "txHash": "0x8b9dc8592a971e56b478a28b8765f1df1cfae6558b61a925824cba3f24267da3",
       "layout": {
         "solcVersion": "0.8.17",
         "storage": [
@@ -6016,15 +6334,15 @@
             "slot": "101",
             "type": "t_uint256",
             "contract": "MoonLabsWhitelist",
-            "src": "contracts\\MoonLabsWhitelist.sol:83"
+            "src": "contracts\\MoonLabsWhitelist.sol:75"
           },
           {
-            "label": "usdAddress",
+            "label": "feeCollector",
             "offset": 0,
             "slot": "102",
             "type": "t_address",
             "contract": "MoonLabsWhitelist",
-            "src": "contracts\\MoonLabsWhitelist.sol:84"
+            "src": "contracts\\MoonLabsWhitelist.sol:76"
           },
           {
             "label": "codeDiscount",
@@ -6032,7 +6350,7 @@
             "slot": "102",
             "type": "t_uint32",
             "contract": "MoonLabsWhitelist",
-            "src": "contracts\\MoonLabsWhitelist.sol:86"
+            "src": "contracts\\MoonLabsWhitelist.sol:79"
           },
           {
             "label": "codeCommission",
@@ -6040,39 +6358,63 @@
             "slot": "102",
             "type": "t_uint32",
             "contract": "MoonLabsWhitelist",
-            "src": "contracts\\MoonLabsWhitelist.sol:88"
+            "src": "contracts\\MoonLabsWhitelist.sol:82"
+          },
+          {
+            "label": "mlabDiscountPercent",
+            "offset": 28,
+            "slot": "102",
+            "type": "t_uint8",
+            "contract": "MoonLabsWhitelist",
+            "src": "contracts\\MoonLabsWhitelist.sol:85"
+          },
+          {
+            "label": "mlabToken",
+            "offset": 0,
+            "slot": "103",
+            "type": "t_contract(IERC20Upgradeable)378",
+            "contract": "MoonLabsWhitelist",
+            "src": "contracts\\MoonLabsWhitelist.sol:87"
           },
           {
             "label": "usdContract",
             "offset": 0,
-            "slot": "103",
-            "type": "t_contract(IERC20Upgradeable)451",
+            "slot": "104",
+            "type": "t_contract(IERC20Upgradeable)378",
             "contract": "MoonLabsWhitelist",
-            "src": "contracts\\MoonLabsWhitelist.sol:91"
+            "src": "contracts\\MoonLabsWhitelist.sol:90"
           },
           {
             "label": "referralContract",
             "offset": 0,
-            "slot": "104",
-            "type": "t_contract(IMoonLabsReferral)23086",
+            "slot": "105",
+            "type": "t_contract(IMoonLabsReferral)2992",
             "contract": "MoonLabsWhitelist",
-            "src": "contracts\\MoonLabsWhitelist.sol:93"
+            "src": "contracts\\MoonLabsWhitelist.sol:94"
+          },
+          {
+            "label": "routerContract",
+            "offset": 0,
+            "slot": "106",
+            "type": "t_contract(IDEXRouter)2960",
+            "contract": "MoonLabsWhitelist",
+            "src": "contracts\\MoonLabsWhitelist.sol:97"
           },
           {
             "label": "tokenToWhitelist",
             "offset": 0,
-            "slot": "105",
+            "slot": "107",
             "type": "t_mapping(t_address,t_bool)",
             "contract": "MoonLabsWhitelist",
-            "src": "contracts\\MoonLabsWhitelist.sol:96"
+            "src": "contracts\\MoonLabsWhitelist.sol:98"
           },
           {
             "label": "pairToBlacklist",
             "offset": 0,
-            "slot": "106",
+            "slot": "108",
             "type": "t_mapping(t_address,t_bool)",
             "contract": "MoonLabsWhitelist",
-            "src": "contracts\\MoonLabsWhitelist.sol:97"
+            "src": "contracts\\MoonLabsWhitelist.sol:99"
           }
         ],
         "types": {
@@ -6092,11 +6434,15 @@
             "label": "bool",
             "numberOfBytes": "1"
           },
-          "t_contract(IERC20Upgradeable)451": {
+          "t_contract(IDEXRouter)2960": {
+            "label": "contract IDEXRouter",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IERC20Upgradeable)378": {
             "label": "contract IERC20Upgradeable",
             "numberOfBytes": "20"
           },
-          "t_contract(IMoonLabsReferral)23086": {
+          "t_contract(IMoonLabsReferral)2992": {
             "label": "contract IMoonLabsReferral",
             "numberOfBytes": "20"
           },
@@ -6119,9 +6465,9 @@
         }
       }
     },
-    "919c6d216f0f60f8d08ae10e034919c699ee9532f5c0dd275dec7277d1ef2373": {
+    "28cc671a99607bb89f43f49e1d09a0a2c8a1e5ea4039f45792536b1a1a6d4092": {
       "address": "0xE7FF84Df24A9a252B6E8A5BB093aC52B1d8bEEdf",
-      "txHash": "0x24f2264b958b4d6cb08bc123ad5a059fc122ba3974e720db62152100ea0ef7b7",
+      "txHash": "0xecafdf796cc2660e6f34411ebfc3fed8dce45b09c3e02956e7a88aaeaf5aeafa",
       "layout": {
         "solcVersion": "0.8.17",
         "storage": [
@@ -6188,7 +6534,7 @@
             "slot": "151",
             "type": "t_uint256",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:83"
+            "src": "contracts\\MoonLabsTokenLocker.sol:95"
           },
           {
             "label": "ethSplitPrice",
@@ -6196,7 +6542,7 @@
             "slot": "152",
             "type": "t_uint256",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:84"
+            "src": "contracts\\MoonLabsTokenLocker.sol:96"
           },
           {
             "label": "ethRelockPrice",
@@ -6204,7 +6550,7 @@
             "slot": "153",
             "type": "t_uint256",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:85"
+            "src": "contracts\\MoonLabsTokenLocker.sol:97"
           },
           {
             "label": "burnThreshold",
@@ -6212,7 +6558,7 @@
             "slot": "154",
             "type": "t_uint256",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:86"
+            "src": "contracts\\MoonLabsTokenLocker.sol:98"
           },
           {
             "label": "burnMeter",
@@ -6220,7 +6566,7 @@
             "slot": "155",
             "type": "t_uint256",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:87"
+            "src": "contracts\\MoonLabsTokenLocker.sol:99"
           },
           {
             "label": "feeCollector",
@@ -6228,7 +6574,7 @@
             "slot": "156",
             "type": "t_address",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:88"
+            "src": "contracts\\MoonLabsTokenLocker.sol:99"
           },
           {
             "label": "nonce",
@@ -6236,7 +6582,7 @@
             "slot": "156",
             "type": "t_uint64",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:88"
+            "src": "contracts\\MoonLabsTokenLocker.sol:100"
           },
           {
             "label": "codeDiscount",
@@ -6244,7 +6590,7 @@
             "slot": "156",
             "type": "t_uint8",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:89"
+            "src": "contracts\\MoonLabsTokenLocker.sol:100"
           },
           {
             "label": "burnPercent",
@@ -6252,7 +6598,7 @@
             "slot": "156",
             "type": "t_uint8",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:91"
+            "src": "contracts\\MoonLabsTokenLocker.sol:102"
           },
           {
             "label": "mlabDiscountPercent",
@@ -6260,7 +6606,7 @@
             "slot": "156",
             "type": "t_uint8",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:92"
+            "src": "contracts\\MoonLabsTokenLocker.sol:104"
           },
           {
             "label": "percentLockPrice",
@@ -6268,7 +6614,7 @@
             "slot": "157",
             "type": "t_uint16",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:94"
+            "src": "contracts\\MoonLabsTokenLocker.sol:106"
           },
           {
             "label": "percentSplitPrice",
@@ -6276,7 +6622,7 @@
             "slot": "157",
             "type": "t_uint16",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:97"
+            "src": "contracts\\MoonLabsTokenLocker.sol:109"
           },
           {
             "label": "percentRelockPrice",
@@ -6284,7 +6630,7 @@
             "slot": "157",
             "type": "t_uint16",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:100"
+            "src": "contracts\\MoonLabsTokenLocker.sol:112"
           },
           {
             "label": "mlabToken",
@@ -6292,31 +6638,31 @@
             "slot": "157",
             "type": "t_contract(IERC20Upgradeable)451",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:102"
+            "src": "contracts\\MoonLabsTokenLocker.sol:114"
           },
           {
             "label": "routerContract",
             "offset": 0,
             "slot": "158",
-            "type": "t_contract(IDEXRouter)2349",
+            "type": "t_contract(IDEXRouter)3033",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:106"
+            "src": "contracts\\MoonLabsTokenLocker.sol:115"
           },
           {
             "label": "referralContract",
             "offset": 0,
             "slot": "159",
-            "type": "t_contract(IMoonLabsReferral)6640",
+            "type": "t_contract(IMoonLabsReferral)7324",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:108"
+            "src": "contracts\\MoonLabsTokenLocker.sol:118"
           },
           {
             "label": "whitelistContract",
             "offset": 0,
             "slot": "160",
-            "type": "t_contract(IMoonLabsWhitelist)6648",
+            "type": "t_contract(IMoonLabsWhitelist)7332",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:113"
+            "src": "contracts\\MoonLabsTokenLocker.sol:121"
           },
           {
             "label": "ownerToLock",
@@ -6324,7 +6670,7 @@
             "slot": "161",
             "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:124"
+            "src": "contracts\\MoonLabsTokenLocker.sol:140"
           },
           {
             "label": "withdrawalToLock",
@@ -6332,7 +6678,7 @@
             "slot": "162",
             "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:125"
+            "src": "contracts\\MoonLabsTokenLocker.sol:144"
           },
           {
             "label": "tokenToLock",
@@ -6340,15 +6686,15 @@
             "slot": "163",
             "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:128"
+            "src": "contracts\\MoonLabsTokenLocker.sol:149"
           },
           {
             "label": "lockInstance",
             "offset": 0,
             "slot": "164",
-            "type": "t_mapping(t_uint64,t_struct(LockInstance)6824_storage)",
+            "type": "t_mapping(t_uint64,t_struct(LockInstance)7508_storage)",
             "contract": "MoonLabsTokenLocker",
-            "src": "contracts\\MoonLabsTokenLocker.sol:130"
+            "src": "contracts\\MoonLabsTokenLocker.sol:153"
           }
         ],
         "types": {
@@ -6372,7 +6718,7 @@
             "label": "bool",
             "numberOfBytes": "1"
           },
-          "t_contract(IDEXRouter)2349": {
+          "t_contract(IDEXRouter)3033": {
             "label": "contract IDEXRouter",
             "numberOfBytes": "20"
           },
@@ -6380,11 +6726,11 @@
             "label": "contract IERC20Upgradeable",
             "numberOfBytes": "20"
           },
-          "t_contract(IMoonLabsReferral)6640": {
+          "t_contract(IMoonLabsReferral)7324": {
             "label": "contract IMoonLabsReferral",
             "numberOfBytes": "20"
           },
-          "t_contract(IMoonLabsWhitelist)6648": {
+          "t_contract(IMoonLabsWhitelist)7332": {
             "label": "contract IMoonLabsWhitelist",
             "numberOfBytes": "20"
           },
@@ -6392,11 +6738,11 @@
             "label": "mapping(address => uint64[])",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_uint64,t_struct(LockInstance)6824_storage)": {
+          "t_mapping(t_uint64,t_struct(LockInstance)7508_storage)": {
             "label": "mapping(uint64 => struct MoonLabsTokenLocker.LockInstance)",
             "numberOfBytes": "32"
           },
-          "t_struct(LockInstance)6824_storage": {
+          "t_struct(LockInstance)7508_storage": {
             "label": "struct MoonLabsTokenLocker.LockInstance",
             "members": [
               {
@@ -6443,304 +6789,6 @@
               }
             ],
             "numberOfBytes": "192"
-          },
-          "t_uint16": {
-            "label": "uint16",
-            "numberOfBytes": "2"
-          },
-          "t_uint256": {
-            "label": "uint256",
-            "numberOfBytes": "32"
-          },
-          "t_uint64": {
-            "label": "uint64",
-            "numberOfBytes": "8"
-          },
-          "t_uint8": {
-            "label": "uint8",
-            "numberOfBytes": "1"
-          }
-        }
-      }
-    },
-    "59f9336e84b420a8c462e5fc99ab7fc9b0c4b57d52f21bca9837dccf28d2b946": {
-      "address": "0x5E5713a0d915701F464DEbb66015adD62B2e6AE9",
-      "txHash": "0x262111f539e18f1bd5ff3b82238d2e3a61c692c859c9a3393282bc15c788f7f9",
-      "layout": {
-        "solcVersion": "0.8.17",
-        "storage": [
-          {
-            "label": "_initialized",
-            "offset": 0,
-            "slot": "0",
-            "type": "t_uint8",
-            "contract": "Initializable",
-            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:62",
-            "retypedFrom": "bool"
-          },
-          {
-            "label": "_initializing",
-            "offset": 1,
-            "slot": "0",
-            "type": "t_bool",
-            "contract": "Initializable",
-            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:67"
-          },
-          {
-            "label": "__gap",
-            "offset": 0,
-            "slot": "1",
-            "type": "t_array(t_uint256)50_storage",
-            "contract": "ContextUpgradeable",
-            "src": "@openzeppelin\\contracts-upgradeable\\utils\\ContextUpgradeable.sol:36"
-          },
-          {
-            "label": "_owner",
-            "offset": 0,
-            "slot": "51",
-            "type": "t_address",
-            "contract": "OwnableUpgradeable",
-            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:22"
-          },
-          {
-            "label": "__gap",
-            "offset": 0,
-            "slot": "52",
-            "type": "t_array(t_uint256)49_storage",
-            "contract": "OwnableUpgradeable",
-            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:94"
-          },
-          {
-            "label": "_status",
-            "offset": 0,
-            "slot": "101",
-            "type": "t_uint256",
-            "contract": "ReentrancyGuardUpgradeable",
-            "src": "@openzeppelin\\contracts-upgradeable\\security\\ReentrancyGuardUpgradeable.sol:38"
-          },
-          {
-            "label": "__gap",
-            "offset": 0,
-            "slot": "102",
-            "type": "t_array(t_uint256)49_storage",
-            "contract": "ReentrancyGuardUpgradeable",
-            "src": "@openzeppelin\\contracts-upgradeable\\security\\ReentrancyGuardUpgradeable.sol:80"
-          },
-          {
-            "label": "ethLockPrice",
-            "offset": 0,
-            "slot": "151",
-            "type": "t_uint256",
-            "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:79"
-          },
-          {
-            "label": "burnThreshold",
-            "offset": 0,
-            "slot": "152",
-            "type": "t_uint256",
-            "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:80"
-          },
-          {
-            "label": "burnMeter",
-            "offset": 0,
-            "slot": "153",
-            "type": "t_uint256",
-            "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:81"
-          },
-          {
-            "label": "feeCollector",
-            "offset": 0,
-            "slot": "154",
-            "type": "t_address",
-            "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:83"
-          },
-          {
-            "label": "nonce",
-            "offset": 20,
-            "slot": "154",
-            "type": "t_uint64",
-            "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:84"
-          },
-          {
-            "label": "codeDiscount",
-            "offset": 28,
-            "slot": "154",
-            "type": "t_uint8",
-            "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:86"
-          },
-          {
-            "label": "burnPercent",
-            "offset": 29,
-            "slot": "154",
-            "type": "t_uint8",
-            "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:89"
-          },
-          {
-            "label": "mlabDiscountPercent",
-            "offset": 30,
-            "slot": "154",
-            "type": "t_uint8",
-            "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:91"
-          },
-          {
-            "label": "percentLockPrice",
-            "offset": 0,
-            "slot": "155",
-            "type": "t_uint16",
-            "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:92"
-          },
-          {
-            "label": "mlabToken",
-            "offset": 2,
-            "slot": "155",
-            "type": "t_contract(IERC20Upgradeable)451",
-            "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:96"
-          },
-          {
-            "label": "routerContract",
-            "offset": 0,
-            "slot": "156",
-            "type": "t_contract(IDEXRouter)2349",
-            "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:99"
-          },
-          {
-            "label": "referralContract",
-            "offset": 0,
-            "slot": "157",
-            "type": "t_contract(IMoonLabsReferral)11958",
-            "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:103"
-          },
-          {
-            "label": "whitelistContract",
-            "offset": 0,
-            "slot": "158",
-            "type": "t_contract(IMoonLabsWhitelist)11966",
-            "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:104"
-          },
-          {
-            "label": "withdrawalToLock",
-            "offset": 0,
-            "slot": "159",
-            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
-            "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:117"
-          },
-          {
-            "label": "tokenToLock",
-            "offset": 0,
-            "slot": "160",
-            "type": "t_mapping(t_address,t_array(t_uint64)dyn_storage)",
-            "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:118"
-          },
-          {
-            "label": "vestingInstance",
-            "offset": 0,
-            "slot": "161",
-            "type": "t_mapping(t_uint64,t_struct(VestingInstance)12111_storage)",
-            "contract": "MoonLabsVesting",
-            "src": "contracts\\MoonLabsVesting.sol:120"
-          }
-        ],
-        "types": {
-          "t_address": {
-            "label": "address",
-            "numberOfBytes": "20"
-          },
-          "t_array(t_uint256)49_storage": {
-            "label": "uint256[49]",
-            "numberOfBytes": "1568"
-          },
-          "t_array(t_uint256)50_storage": {
-            "label": "uint256[50]",
-            "numberOfBytes": "1600"
-          },
-          "t_array(t_uint64)dyn_storage": {
-            "label": "uint64[]",
-            "numberOfBytes": "32"
-          },
-          "t_bool": {
-            "label": "bool",
-            "numberOfBytes": "1"
-          },
-          "t_contract(IDEXRouter)2349": {
-            "label": "contract IDEXRouter",
-            "numberOfBytes": "20"
-          },
-          "t_contract(IERC20Upgradeable)451": {
-            "label": "contract IERC20Upgradeable",
-            "numberOfBytes": "20"
-          },
-          "t_contract(IMoonLabsReferral)11958": {
-            "label": "contract IMoonLabsReferral",
-            "numberOfBytes": "20"
-          },
-          "t_contract(IMoonLabsWhitelist)11966": {
-            "label": "contract IMoonLabsWhitelist",
-            "numberOfBytes": "20"
-          },
-          "t_mapping(t_address,t_array(t_uint64)dyn_storage)": {
-            "label": "mapping(address => uint64[])",
-            "numberOfBytes": "32"
-          },
-          "t_mapping(t_uint64,t_struct(VestingInstance)12111_storage)": {
-            "label": "mapping(uint64 => struct MoonLabsVesting.VestingInstance)",
-            "numberOfBytes": "32"
-          },
-          "t_struct(VestingInstance)12111_storage": {
-            "label": "struct MoonLabsVesting.VestingInstance",
-            "members": [
-              {
-                "label": "tokenAddress",
-                "type": "t_address",
-                "offset": 0,
-                "slot": "0"
-              },
-              {
-                "label": "withdrawalAddress",
-                "type": "t_address",
-                "offset": 0,
-                "slot": "1"
-              },
-              {
-                "label": "depositAmount",
-                "type": "t_uint256",
-                "offset": 0,
-                "slot": "2"
-              },
-              {
-                "label": "withdrawnAmount",
-                "type": "t_uint256",
-                "offset": 0,
-                "slot": "3"
-              },
-              {
-                "label": "startDate",
-                "type": "t_uint64",
-                "offset": 0,
-                "slot": "4"
-              },
-              {
-                "label": "endDate",
-                "type": "t_uint64",
-                "offset": 8,
-                "slot": "4"
-              }
-            ],
-            "numberOfBytes": "160"
           },
           "t_uint16": {
             "label": "uint16",

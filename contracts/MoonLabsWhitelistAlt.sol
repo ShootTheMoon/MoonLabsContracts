@@ -46,20 +46,17 @@ interface IMoonLabsWhitelist {
   function getIsWhitelisted(address _address) external view returns (bool);
 }
 
-contract MoonLabsWhitelist is Initializable, IMoonLabsWhitelist, OwnableUpgradeable {
+contract MoonLabsWhitelistAlt is Initializable, IMoonLabsWhitelist, OwnableUpgradeable {
   using SafeERC20Upgradeable for IERC20Upgradeable;
 
-  function initialize(address _mlabToken, address _feeCollector, address referralAddress, address usdAddress, address routerAddress, uint _costUSD) public initializer {
+  function initialize(address _feeCollector, address referralAddress, address usdAddress, address routerAddress, uint _costUSD) public initializer {
     __Ownable_init();
     feeCollector = _feeCollector;
     costUSD = _costUSD;
-    mlabToken = IERC20Upgradeable(_mlabToken);
     usdContract = IERC20Upgradeable(usdAddress);
-    routerContract = IDEXRouter(routerAddress);
     referralContract = IMoonLabsReferral(referralAddress);
     codeDiscount = 10;
     codeCommission = 10;
-    mlabDiscountPercent = 20;
   }
 
   /*|| === STATE VARIABLES === ||*/
@@ -67,30 +64,14 @@ contract MoonLabsWhitelist is Initializable, IMoonLabsWhitelist, OwnableUpgradea
   address public feeCollector; /// Fee collection address for paying with token percent
   uint32 public codeDiscount; /// Discount in the percentage applied to the customer when using referral code, represented in 10s
   uint32 public codeCommission; /// Percentage of each lock purchase sent to referral code owner, represented in 10s
-  uint8 public mlabDiscountPercent; /// Percent discount of MLAB pruchases
-  IERC20Upgradeable public mlabToken; /// Native Moon Labs token
   IERC20Upgradeable public usdContract; /// Select USD contract
   IMoonLabsReferral public referralContract; /// Moon Labs referral contract
-  IDEXRouter public routerContract; /// Uniswap router
 
   /*|| === MAPPINGS === ||*/
   mapping(address => bool) tokenToWhitelist;
   mapping(address => bool) pairToBlacklist;
 
   /*|| === EXTERNAL FUNCTIONS === ||*/
-  /**
-   * @notice Purchase a whitelist for a single token.
-   * @param _address Token address to be whitelisted
-   */
-  function purchaseWhitelistMLAB(address _address) external {
-    /// Check if token is already whitelisted
-    require(!getIsWhitelisted(_address), "Token already whitelisted");
-
-    _buyWithMLAB(costUSD);
-
-    tokenToWhitelist[_address] = true;
-  }
-
   /**
    * @notice Purchase a whitelist for a single token.
    * @param _address Token address to be whitelisted
@@ -211,39 +192,12 @@ contract MoonLabsWhitelist is Initializable, IMoonLabsWhitelist, OwnableUpgradea
   }
 
   /**
-   * @notice Set the Uniswap router address. Owner only function.
-   * @param _routerAddress Address of uniswap router
-   */
-  function setRouter(address _routerAddress) external onlyOwner {
-    require(_routerAddress != address(0), "Zero Address");
-    routerContract = IDEXRouter(_routerAddress);
-  }
-
-  /**
    * @notice Set the USD token address. Owner only function.
    * @param _usdAddress USD token address
    */
   function setUSDContract(address _usdAddress) external onlyOwner {
     require(_usdAddress != address(0), "Zero Address");
     usdContract = IERC20Upgradeable(_usdAddress);
-  }
-
-  /**
-   * @notice Set the Moon Labs native token address. Owner only function.
-   * @param _mlabToken native moon labs token
-   */
-  function setMlabToken(address _mlabToken) external onlyOwner {
-    require(_mlabToken != address(0), "Zero Address");
-    mlabToken = IERC20Upgradeable(_mlabToken);
-  }
-
-  /**
-   * @notice Set the percentage of MLAB discounted per lock. Owner only function.
-   * @param _mlabDiscountPercent Percentage represented in 10s
-   */
-  function setMlabDiscountPercent(uint8 _mlabDiscountPercent) external onlyOwner {
-    require(_mlabDiscountPercent < 100, "Percentage ceiling");
-    mlabDiscountPercent = _mlabDiscountPercent;
   }
 
   /**
@@ -283,38 +237,7 @@ contract MoonLabsWhitelist is Initializable, IMoonLabsWhitelist, OwnableUpgradea
     return false;
   }
 
-  /**
-   * @notice Fetches price of mlab to WETH
-   * @param amountInUSD amount in USD
-   */
-  function getMLABFee(uint amountInUSD) public view returns (uint) {
-    ///  Get price quote via uniswap router
-    address[] memory pathUSD = new address[](2);
-    pathUSD[0] = address(usdContract);
-    pathUSD[1] = routerContract.WETH();
-    uint[] memory amountOutsUSD = routerContract.getAmountsOut(amountInUSD, pathUSD);
-    ///  Get price quote via uniswap router
-    address[] memory pathMLAB = new address[](2);
-    pathMLAB[0] = routerContract.WETH();
-    pathMLAB[1] = address(mlabToken);
-    uint[] memory amountOutsMLAB = routerContract.getAmountsOut(amountOutsUSD[1], pathMLAB);
-    return MathUpgradeable.mulDiv(amountOutsMLAB[1], (100 - mlabDiscountPercent), 100);
-  }
-
   /*|| === PRIVATE FUNCTIONS === ||*/
-  /**
-   * @notice Private function purchases with mlab
-   */
-  function _buyWithMLAB(uint amountInUSD) private {
-    /// Fee in MLAB
-    uint mlabFee = getMLABFee(amountInUSD);
-    /// Check for adequate supply in sender wallet
-    require(mlabFee <= mlabToken.balanceOf(msg.sender), "MLAB balance");
-
-    /// Transfer tokens from sender to fee collector
-    mlabToken.safeTransferFrom(msg.sender, feeCollector, mlabFee);
-  }
-
   /**
    * @notice Distribute commission to referral code owner.
    * @param code Referral code used

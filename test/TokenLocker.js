@@ -45,7 +45,7 @@ describe("Deployment", async function () {
 
     // Deploy whitelist contract
     const MoonLabsWhitelist = await ethers.getContractFactory("MoonLabsWhitelist");
-    const moonLabsWhitelist = await upgrades.deployProxy(MoonLabsWhitelist, [usdcToken.address, "5000000000000"], {
+    const moonLabsWhitelist = await upgrades.deployProxy(MoonLabsWhitelist, [testToken.address, owner.address, usdcToken.address, routerAddress, "5000000000"], {
       initializer: "initialize",
     });
     await moonLabsWhitelist.deployed();
