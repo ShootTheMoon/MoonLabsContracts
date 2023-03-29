@@ -23,12 +23,14 @@
  * related Moon Labs products to be waived. Whitelists may not be transferred from token to token.
  */
 
-pragma solidity 0.8.19;
+pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
+import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "./IDEXRouter.sol";
 
 interface IMoonLabsReferral {
@@ -74,6 +76,7 @@ contract MoonLabsWhitelist is
 
     /*|| === MAPPINGS === ||*/
     mapping(address => bool) tokenToWhitelist;
+    mapping(address => bool) pairToBlacklist;
 
     /*|| === EXTERNAL FUNCTIONS === ||*/
     /**
@@ -81,7 +84,9 @@ contract MoonLabsWhitelist is
      * @param _address Token address to be whitelisted
      */
     function purchaseWhitelist(address _address) external {
+        /// Check if token is already whitelisted
         require(!getIsWhitelisted(_address), "Token already whitelisted");
+        /// Check for significant balance
         require(
             usdContract.balanceOf(msg.sender) >= costUSD,
             "Insignificant balance"
@@ -101,8 +106,9 @@ contract MoonLabsWhitelist is
         address _address,
         string calldata code
     ) external {
+        /// Check if token is already whitelisted
         require(!getIsWhitelisted(_address), "Token already whitelisted");
-        /// Check for referral valid code
+        /// Check for valid code
         require(referralContract.checkIfActive(code), "Invalid code");
         /// Check for significant balance
         require(
@@ -127,7 +133,8 @@ contract MoonLabsWhitelist is
      * @param _address Token address to be whitelisted
      */
     function ownerWhitelistAdd(address _address) external onlyOwner {
-        /// Add token to global whitelist
+        /// Check if token is already whitelisted
+        require(!getIsWhitelisted(_address), "Token already whitelisted");
         tokenToWhitelist[_address] = true;
     }
 
@@ -135,9 +142,30 @@ contract MoonLabsWhitelist is
      * @notice Remove from whitelist. Owner only function.
      * @param _address Token address to be removed from whitelist
      */
-    function ownerWhitelistRemove(address _address) external onlyOwner {
-        /// Add token to global whitelist
+    function removeWhitelist(address _address) external onlyOwner {
+        /// Check if token whitelisted
+        require(getIsWhitelisted(_address), "Token not whitelisted");
         tokenToWhitelist[_address] = false;
+    }
+
+    /**
+     * @notice Add token to pair blacklist. Owner only function.
+     * @param _address Token address to be blacklisted
+     */
+    function addPairBlacklist(address _address) external onlyOwner {
+        /// Check if token is already blacklisted
+        require(!pairToBlacklist[_address], "Token already blacklisted");
+        pairToBlacklist[_address] = true;
+    }
+
+    /**
+     * @notice Remove token from pair blacklist. Owner only function.
+     * @param _address Token address to be removed from blacklist
+     */
+    function removePairBlacklist(address _address) external onlyOwner {
+        /// Check if token is already blacklisted
+        require(pairToBlacklist[_address], "Token not blacklisted");
+        pairToBlacklist[_address] = false;
     }
 
     /**
@@ -187,6 +215,16 @@ contract MoonLabsWhitelist is
         );
     }
 
+    function getTokenToWhitelist(
+        address _address
+    ) external view returns (bool) {
+        return tokenToWhitelist[_address];
+    }
+
+    function getPairToBlacklist(address _address) external view returns (bool) {
+        return pairToBlacklist[_address];
+    }
+
     /*|| === PUBLIC FUNCTIONS === ||*/
     /**
      * @notice Check to see if a token is whitelisted.
@@ -196,6 +234,10 @@ contract MoonLabsWhitelist is
         address _address
     ) public view override returns (bool) {
         if (tokenToWhitelist[_address]) return true;
+        /// Check for v2 pairs
+        if (checkV2Pair(_address)) return true;
+        /// Check for v3 pools
+        if (checkV3Pool(_address)) return true;
         return false;
     }
 
@@ -223,5 +265,64 @@ contract MoonLabsWhitelist is
 
         /// Log rewards in the referral contract
         referralContract.addRewardsEarnedUSD(code, amountSent);
+    }
+
+    /**
+     * @notice Checks if address is v2 pair and if pair is linked to whitelisted token
+     * @param _address address to check
+     */
+    function checkV2Pair(address _address) private view returns (bool) {
+        /// Check if address is contract
+        if (_address.code.length == 0) {
+            return false;
+        }
+        /// Check if address is v2 pair address to whitelisted token
+        IUniswapV2Pair pairContract = IUniswapV2Pair(_address);
+
+        try pairContract.token0() returns (address _token0) {
+            if (checkIfValidPair(_token0)) return true;
+        } catch (bytes memory) {
+            return false;
+        }
+        try pairContract.token1() returns (address _token1) {
+            if (checkIfValidPair(_token1)) return true;
+        } catch (bytes memory) {
+            return false;
+        }
+        return false;
+    }
+
+    /**
+     * @notice Checks if address is v3 pair and if pair is linked to whitelisted token
+     * @param _address address to check
+     */
+    function checkV3Pool(address _address) private view returns (bool) {
+        /// Check if address is contract
+        if (_address.code.length == 0) {
+            return false;
+        }
+
+        /// Check if address is v3 pool address to whitelisted token
+        IUniswapV2Pair pairContract = IUniswapV2Pair(_address);
+
+        try pairContract.token0() returns (address _token0) {
+            if (checkIfValidPair(_token0)) return true;
+        } catch (bytes memory) {
+            return false;
+        }
+        try pairContract.token1() returns (address _token1) {
+            if (checkIfValidPair(_token1)) return true;
+        } catch (bytes memory) {
+            return false;
+        }
+        return false;
+    }
+
+    /**
+     * @notice Checks if address is whitelisted and if pair is not blacklisted
+     * @param _address address to check
+     */
+    function checkIfValidPair(address _address) private view returns (bool) {
+        return tokenToWhitelist[_address] && !pairToBlacklist[_address];
     }
 }

@@ -15,9 +15,13 @@ async function main() {
   // await moonLabsWhitelist.deployed();
 
   // const MoonLabsTokenLocker = await ethers.getContractFactory("MoonLabsTokenLocker");
-  // const moonLabsTokenLocker = await upgrades.deployProxy(MoonLabsTokenLocker, ["0xaD5D813ab94a32bfF64175C73a1bF49D590bB511", "0xDE5b07E03133e2724684e8700b7D170FEFd6C49D", moonLabsReferral.address, moonLabsWhitelist.address, "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"], {
-  //   initializer: "initialize",
-  // });
+  // const moonLabsTokenLocker = await upgrades.deployProxy(
+  //   MoonLabsTokenLocker,
+  //   ["0xaD5D813ab94a32bfF64175C73a1bF49D590bB511", "0xDE5b07E03133e2724684e8700b7D170FEFd6C49D", "0x654C608de0bE03433c01A241bf7Af7265301a7D4", "0x471786782D6060208b35A2cB6718e67Cf70d8Fc9", "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"],
+  //   {
+  //     initializer: "initialize",
+  //   }
+  // );
 
   // await moonLabsTokenLocker.deployed();
 
@@ -44,7 +48,7 @@ async function main() {
   setTimeout(async () => {
     console.log("Verifying Referral contract...");
     await hre.run("verify:verify", {
-      address: "0x3d20e58fc58C103dDF243f0515042c5EEBdd9C71",
+      address: "0xa80EBf989bF568EF83FBfC40Fa8b4395887A633C",
     });
     console.log("Done");
   }, 1);

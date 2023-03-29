@@ -27,7 +27,7 @@
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-pragma solidity 0.8.19;
+pragma solidity 0.8.17;
 
 interface IMoonLabsReferral {
     function checkIfActive(string calldata code) external view returns (bool);

@@ -14,7 +14,7 @@
  * @author TG: @moondan1337
  */
 
-pragma solidity 0.8.19;
+pragma solidity 0.8.17;
 
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";

@@ -12,7 +12,7 @@ module.exports = {
   solidity: {
     compilers: [
       {
-        version: "0.8.19",
+        version: "0.8.17",
         settings: {
           optimizer: {
             // Toggles whether the optimizer is on or off.
@@ -43,6 +43,7 @@ module.exports = {
       },
     },
   },
+
   networks: {
     hardhat: {
       chainId: 1337,
@@ -64,12 +65,21 @@ module.exports = {
       accounts: [process.env.PRIVATE_KEY],
     },
   },
+
   etherscan: {
     apiKey: process.env.ETH_SCAN_API,
   },
+
   gasReporter: {
     enabled: true,
     currency: "USD",
     coinmarketcap: process.env.CMC_API,
   },
+
+  // contractSizer: {
+  //   alphaSort: true,
+  //   disambiguatePaths: false,
+  //   runOnCompile: true,
+  //   strict: true,
+  // },
 };
