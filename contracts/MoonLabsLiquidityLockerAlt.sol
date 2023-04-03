@@ -322,7 +322,7 @@ contract MoonLabsLiquidityLockerAlt is
         }
 
         /// Change lock owner in lock instance to new owner
-        lockInstance[_nonce].ownerAddress == _address;
+        lockInstance[_nonce].ownerAddress = _address;
 
         /// Map nonce of transferred lock to the new owner
         ownerToLock[_address].push(_nonce);
@@ -652,6 +652,91 @@ contract MoonLabsLiquidityLockerAlt is
 
     /*|| === PRIVATE FUNCTIONS === ||*/
     /**
+     * @notice Private function handeling lock relocks
+     */
+    function _relock(
+        uint64 _nonce,
+        uint amount,
+        address tokenAddress,
+        uint64 unlockDate
+    ) private {
+        /// Check that sender is the lock owner
+        require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
+        /// Check for end date upper bounds
+        require(
+            unlockDate + lockInstance[_nonce].unlockDate < 10000000000,
+            "End date"
+        );
+
+        if (amount > 0) {
+            /// Check if sender has adequate token blance if sender is adding tokens to the lock
+            require(
+                IERC20Upgradeable(tokenAddress).balanceOf(msg.sender) >= amount,
+                "Token balance"
+            );
+            /// Transfer tokens to contract and get amount sent
+            uint amountSent = _transferAndCalculate(tokenAddress, amount);
+            lockInstance[_nonce].currentAmount += amountSent;
+            lockInstance[_nonce].depositAmount += amountSent;
+        }
+        if (unlockDate > 0) lockInstance[_nonce].unlockDate += unlockDate;
+
+        emit LockRelocked(msg.sender, amount, unlockDate, _nonce);
+    }
+
+    /**
+     * @notice Private function handeling lock splits
+     */
+    function _splitLock(
+        uint64 _nonce,
+        uint depositAmount,
+        uint currentAmount,
+        uint amount,
+        address tokenAddress,
+        address to
+    ) private {
+        /// Check that sender is the lock owner
+        require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
+        /// Check that amount is less than the current amount in the lock
+        require(currentAmount > amount, "Transfer balance");
+        /// Check that amount is not 0
+        require(amount > 0, "Zero transfer");
+
+        /// To maintain linear lock integrity, the deposit amount must maintain proportional to the current amount
+
+        /// Convert amount to corresponding deposit amount and subtract from lock initial deposit
+        uint newDepositAmount = MathUpgradeable.mulDiv(
+            depositAmount,
+            amount,
+            currentAmount
+        );
+        lockInstance[_nonce].depositAmount -= newDepositAmount;
+        /// Subtract amount from the current amount
+        lockInstance[_nonce].currentAmount -= amount;
+
+        /// Create a new lock instance and map to nonce
+        lockInstance[nonce] = LockInstance(
+            tokenAddress,
+            to,
+            newDepositAmount,
+            amount,
+            lockInstance[_nonce].unlockDate
+        );
+        /// Map token address to nonce
+        tokenToLock[tokenAddress].push(nonce);
+        /// Map owner address to nonce
+        ownerToLock[to].push(nonce);
+
+        /// If lock is empty then delete
+        if (lockInstance[_nonce].currentAmount <= 0)
+            _deleteLockInstance(_nonce);
+
+        nonce++;
+
+        emit LockSplit(msg.sender, to, amount, _nonce, nonce - 1);
+    }
+
+    /**
      * @notice Create a single lock instance, maps nonce to lock instance, token address to nonce, owner address to nonce. Checks for valid
      * unlock date, and deposit amount.
      * @param tokenAddress ID of desired lock instance
@@ -736,87 +821,6 @@ contract MoonLabsLiquidityLockerAlt is
         return
             IERC20Upgradeable(tokenAddress).balanceOf(address(this)) -
             previousBal;
-    }
-
-    /**
-     * @notice Private function handeling lock relocks
-     */
-    function _relock(
-        uint64 _nonce,
-        uint amount,
-        address tokenAddress,
-        uint64 unlockDate
-    ) private {
-        /// Check that sender is the lock owner
-        require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
-        /// Check for end date upper bounds
-        require(
-            unlockDate + lockInstance[_nonce].unlockDate < 10000000000,
-            "End date"
-        );
-
-        if (amount > 0) {
-            /// Check if sender has adequate token blance if sender is adding tokens to the lock
-            require(
-                IERC20Upgradeable(tokenAddress).balanceOf(msg.sender) >= amount,
-                "Token balance"
-            );
-            /// Transfer tokens to contract and get amount sent
-            uint amountSent = _transferAndCalculate(tokenAddress, amount);
-            lockInstance[_nonce].currentAmount += amountSent;
-            lockInstance[_nonce].depositAmount += amountSent;
-        }
-        if (unlockDate > 0) lockInstance[_nonce].unlockDate += unlockDate;
-
-        emit LockRelocked(msg.sender, amount, unlockDate, _nonce);
-    }
-
-    /**
-     * @notice Private function handeling lock splits
-     */
-    function _splitLock(
-        uint64 _nonce,
-        uint depositAmount,
-        uint currentAmount,
-        uint amount,
-        address tokenAddress,
-        address to
-    ) private {
-        /// Check that sender is the lock owner
-        require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
-        /// Check that amount is less than the current amount in the lock
-        require(currentAmount > amount, "Transfer balance");
-        /// Check that amount is not 0
-        require(amount > 0, "Zero transfer");
-
-        /// To maintain linear lock integrity, the deposit amount must maintain proportional to the current amount
-
-        /// Convert amount to corresponding deposit amount and subtract from lock initial deposit
-        uint newDepositAmount = MathUpgradeable.mulDiv(
-            depositAmount,
-            amount,
-            currentAmount
-        );
-        lockInstance[_nonce].depositAmount -= newDepositAmount;
-        /// Subtract amount from the current amount
-        lockInstance[_nonce].currentAmount -= amount;
-
-        nonce++;
-
-        /// Create a new lock instance and map to nonce
-        lockInstance[nonce] = LockInstance(
-            tokenAddress,
-            to,
-            newDepositAmount,
-            amount,
-            lockInstance[_nonce].unlockDate
-        );
-        /// Map token address to nonce
-        tokenToLock[tokenAddress].push(nonce);
-        /// Map owner address to nonce
-        ownerToLock[to].push(nonce);
-
-        emit LockSplit(msg.sender, to, amount, _nonce, nonce);
     }
 
     /**

@@ -380,7 +380,7 @@ contract MoonLabsTokenLockerAlt is
         }
 
         /// Change lock owner in lock instance to new owner
-        lockInstance[_nonce].ownerAddress == _owner;
+        lockInstance[_nonce].ownerAddress = _owner;
 
         /// Map nonce of transferred lock to the new owner
         ownerToLock[_owner].push(_nonce);
@@ -849,8 +849,6 @@ contract MoonLabsTokenLockerAlt is
         /// Subtract amount from the current amount
         lockInstance[_nonce].currentAmount -= amount;
 
-        nonce++;
-
         /// Create a new lock instance and map to nonce
         lockInstance[nonce] = LockInstance(
             tokenAddress,
@@ -868,7 +866,13 @@ contract MoonLabsTokenLockerAlt is
         /// Map withdrawal address to nonce
         withdrawalToLock[withdrawalAddress].push(nonce);
 
-        emit LockSplit(msg.sender, to, amount, _nonce, nonce);
+        /// If lock is empty then delete
+        if (lockInstance[_nonce].currentAmount <= 0)
+            _deleteLockInstance(_nonce);
+
+        nonce++;
+
+        emit LockSplit(msg.sender, to, amount, _nonce, nonce - 1);
     }
 
     /**

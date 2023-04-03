@@ -8,6 +8,7 @@ require("hardhat-tracer");
 require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
+
 module.exports = {
   solidity: {
     compilers: [
@@ -22,7 +23,7 @@ module.exports = {
             // The number of runs specifies roughly how often
             // the deployed code will be executed across the
             // life-time of the contract.
-            runs: 2000,
+            runs: 3500,
           },
         },
       },
@@ -62,6 +63,11 @@ module.exports = {
     },
     bsc: {
       url: process.env.BSC_API,
+      accounts: [process.env.PRIVATE_KEY],
+    },
+    bsct: {
+      url: "https://data-seed-prebsc-2-s3.binance.org:8545/",
+      chainId: 97,
       accounts: [process.env.PRIVATE_KEY],
     },
   },

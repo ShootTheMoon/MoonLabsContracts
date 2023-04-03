@@ -1,19 +1,22 @@
 const { ethers, upgrades } = require("hardhat");
 
 async function main() {
-  // const MoonLabsReferral = await ethers.getContractFactory("MoonLabsReferral");
-  // const moonLabsReferral = await upgrades.deployProxy(MoonLabsReferral, {
-  //   initializer: "initialize",
-  // });
-  // await moonLabsReferral.deployed();
+  const MoonLabsReferral = await ethers.getContractFactory("MoonLabsReferral");
+  const moonLabsReferral = await upgrades.deployProxy(MoonLabsReferral, {
+    initializer: "initialize",
+  });
+  await moonLabsReferral.deployed();
+  const MoonLabsWhitelist = await ethers.getContractFactory("MoonLabsWhitelist");
+  const moonLabsWhitelist = await upgrades.deployProxy(
+    MoonLabsWhitelist,
+    ["0xba2ae424d960c26247dd6c32edc70b295c744c43", "0xDE5b07E03133e2724684e8700b7D170FEFd6C49D", "0xDE5b07E03133e2724684e8700b7D170FEFd6C49D", "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d", "0x10ED43C718714eb63d5aA57B78B54704E256024E", "5000000000"],
+    {
+      initializer: "initialize",
+    }
+  );
+  await moonLabsWhitelist.deployed();
 
-  // const MoonLabsWhitelist = await ethers.getContractFactory("MoonLabsWhitelist");
-  // const moonLabsWhitelist = await upgrades.deployProxy(MoonLabsWhitelist, ["0xaD5D813ab94a32bfF64175C73a1bF49D590bB511", "100000000000000000000"], {
-  //   initializer: "initialize",
-  // });
-
-  // await moonLabsWhitelist.deployed();
-
+  
   // const MoonLabsTokenLocker = await ethers.getContractFactory("MoonLabsTokenLocker");
   // const moonLabsTokenLocker = await upgrades.deployProxy(
   //   MoonLabsTokenLocker,
@@ -22,37 +25,29 @@ async function main() {
   //     initializer: "initialize",
   //   }
   // );
-
   // await moonLabsTokenLocker.deployed();
-
   // const MoonLabsLiquidityLocker = await ethers.getContractFactory("MoonLabsLiquidityLocker");
   // const moonLabsLiquidityLocker = await upgrades.deployProxy(MoonLabsLiquidityLocker, ["0xaD5D813ab94a32bfF64175C73a1bF49D590bB511", "0xDE5b07E03133e2724684e8700b7D170FEFd6C49D", moonLabsReferral.address, moonLabsWhitelist.address, "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"], {
   //   initializer: "initialize",
   // });
-
   // await moonLabsLiquidityLocker.deployed();
-
   // const MoonLabsVesting = await ethers.getContractFactory("MoonLabsVesting");
   // const moonLabsVesting = await upgrades.deployProxy(MoonLabsVesting, ["0xaD5D813ab94a32bfF64175C73a1bF49D590bB511", "0xDE5b07E03133e2724684e8700b7D170FEFd6C49D", moonLabsReferral.address, moonLabsWhitelist.address, "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"], {
   //   initializer: "initialize",
   // });
-
   // await moonLabsVesting.deployed();
-
   // console.log("Referral contract deployed to:", moonLabsReferral.address);
   // console.log("Whitelist contract deployed to:", moonLabsWhitelist.address);
   // console.log("Token locker contract deployed to:", moonLabsTokenLocker.address);
   // console.log("Liquidity locker contract deployed to:", moonLabsLiquidityLocker.address);
   // console.log("Vesting contract deployed to:", moonLabsVesting.address);
-
-  setTimeout(async () => {
-    console.log("Verifying Referral contract...");
-    await hre.run("verify:verify", {
-      address: "0xa80EBf989bF568EF83FBfC40Fa8b4395887A633C",
-    });
-    console.log("Done");
-  }, 1);
-
+  // setTimeout(async () => {
+  //   console.log("Verifying Whitelist contract...");
+  //   await hre.run("verify:verify", {
+  //     address: "0xbA5d4A0a87Bce3c12074097C7CC0aBc95AdafebB",
+  //   });
+  //   console.log("Done");
+  // }, 1);
   // setTimeout(async () => {
   //   console.log("Verifying Whitelist contract...");
   //   await hre.run("verify:verify", {
@@ -60,7 +55,6 @@ async function main() {
   //   });
   //   console.log("Done");
   // }, 80000);
-
   // setTimeout(async () => {
   //   console.log("Verifying Token locker contract...");
   //   await hre.run("verify:verify", {
@@ -68,7 +62,6 @@ async function main() {
   //   });
   //   console.log("Done");
   // }, 120000);
-
   // setTimeout(async () => {
   //   console.log("Verifying Liquidity locker contract...");
   //   await hre.run("verify:verify", {
@@ -76,7 +69,6 @@ async function main() {
   //   });
   //   console.log("Done");
   // }, 180000);
-
   // setTimeout(async () => {
   //   console.log("Verifying vesting contract...");
   //   await hre.run("verify:verify", {
