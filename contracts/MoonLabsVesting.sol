@@ -48,7 +48,7 @@ interface IMoonLabsReferral {
 }
 
 interface IMoonLabsWhitelist {
-    function getIsWhitelisted(address _address) external view returns (bool);
+    function getIsWhitelisted(address _address, bool pair) external view returns (bool);
 }
 
 contract MoonLabsVesting is
@@ -237,7 +237,7 @@ contract MoonLabsVesting is
         LockParams[] calldata locks
     ) external payable {
         /// If not whitelisted then check for correct ETH value
-        if (!whitelistContract.getIsWhitelisted(tokenAddress)) {
+        if (!whitelistContract.getIsWhitelisted(tokenAddress, false)) {
             require(
                 msg.value == ethLockPrice * locks.length,
                 "Incorrect price"

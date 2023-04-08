@@ -46,7 +46,7 @@ interface IMoonLabsReferral {
 }
 
 interface IMoonLabsWhitelist {
-    function getIsWhitelisted(address _address) external view returns (bool);
+    function getIsWhitelisted(address _address, bool pair) external view returns (bool);
 }
 
 contract MoonLabsLiquidityLocker is
@@ -233,7 +233,7 @@ contract MoonLabsLiquidityLocker is
         LockParams calldata lock
     ) external payable {
         /// If not whitelisted then check for correct ETH value
-        if (!whitelistContract.getIsWhitelisted(tokenAddress)) {
+        if (!whitelistContract.getIsWhitelisted(tokenAddress, true)) {
             require(msg.value == ethLockPrice, "Incorrect price");
             /// Add to burn amount in ETH to burn meter
             _handleBurns(msg.value);
@@ -425,7 +425,7 @@ contract MoonLabsLiquidityLocker is
         address tokenAddress = lockInstance[_nonce].tokenAddress;
 
         /// Check if the token is whitelisted
-        if (whitelistContract.getIsWhitelisted(tokenAddress)) {
+        if (whitelistContract.getIsWhitelisted(tokenAddress, true)) {
             /// Check if msg value is 0
             require(msg.value == 0, "Incorrect Price");
         } else {
@@ -453,7 +453,7 @@ contract MoonLabsLiquidityLocker is
         address tokenAddress = lockInstance[_nonce].tokenAddress;
 
         /// Check if the token is not whitelisted
-        if (!whitelistContract.getIsWhitelisted(tokenAddress)) {
+        if (!whitelistContract.getIsWhitelisted(tokenAddress, true)) {
             /// Calculate the token fee based on total tokens in lock
             uint tokenFee = MathUpgradeable.mulDiv(
                 lockInstance[_nonce].currentAmount,
@@ -516,7 +516,7 @@ contract MoonLabsLiquidityLocker is
         address tokenAddress = lockInstance[_nonce].tokenAddress;
 
         /// Check if the token is whitelisted
-        if (whitelistContract.getIsWhitelisted(tokenAddress)) {
+        if (whitelistContract.getIsWhitelisted(tokenAddress, true)) {
             /// Check if msg value is 0
             require(msg.value == 0, "Incorrect Price");
         } else {
@@ -550,7 +550,7 @@ contract MoonLabsLiquidityLocker is
         address tokenAddress = lockInstance[_nonce].tokenAddress;
 
         /// Check if the token is not whitelisted
-        if (!whitelistContract.getIsWhitelisted(tokenAddress)) {
+        if (!whitelistContract.getIsWhitelisted(tokenAddress, true)) {
             /// Calculate the token fee based on total tokens locked
             uint tokenFee = MathUpgradeable.mulDiv(
                 currentAmount,
