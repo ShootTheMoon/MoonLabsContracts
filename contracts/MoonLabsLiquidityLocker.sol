@@ -46,7 +46,10 @@ interface IMoonLabsReferral {
 }
 
 interface IMoonLabsWhitelist {
-    function getIsWhitelisted(address _address, bool pair) external view returns (bool);
+    function getIsWhitelisted(
+        address _address,
+        bool pair
+    ) external view returns (bool);
 }
 
 contract MoonLabsLiquidityLocker is
