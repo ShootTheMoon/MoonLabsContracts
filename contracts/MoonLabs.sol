@@ -13,12 +13,12 @@ pragma solidity 0.8.17;
 
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract MoonLabs is ERC20, Ownable, ReentrancyGuard {
+contract MoonLabs is ERC20, Ownable {
     /*|| === STATE VARIABLES === ||*/
     uint public launchDate;
     address public immutable uniswapV2Pair;
@@ -34,8 +34,8 @@ contract MoonLabs is ERC20, Ownable, ReentrancyGuard {
     address payable public liqWallet;
 
     uint public nftBalance;
-    uint public nftPayout = 0.01 ether;
-    uint8 maxNftDistribution = 5;
+    uint public nftPayout = 0.001 ether;
+    uint8 maxNftDistribution = 10;
     uint16 public nftIndex = 1;
 
     string private constant NAME = "Moon Labs";
@@ -119,46 +119,49 @@ contract MoonLabs is ERC20, Ownable, ReentrancyGuard {
      * @notice Enables initial trading and logs time of activation. Once trading is started it cannot be stopped.
      */
     function launch() external onlyOwner {
-        require(!launched, "Token already launched");
+        require(!launched, "MLAB: token already launched");
         launched = true;
         launchDate = block.timestamp;
     }
 
-    function setNftThreshold(uint _nftPayout) external onlyOwner {
+    function setNftPayout(uint _nftPayout) external onlyOwner {
         nftPayout = _nftPayout;
     }
 
     function setMaxNftDistribution(
         uint8 _maxNftDistribution
     ) external onlyOwner {
-        require(_maxNftDistribution < 20, "Max distribution");
+        require(_maxNftDistribution <= 20, "MLAB: max distribution");
         maxNftDistribution = _maxNftDistribution;
     }
 
     function setTreasuryWallet(
         address payable _treasuryWallet
     ) external onlyOwner {
-        require(_treasuryWallet != address(0), "Address cannot be 0 address");
+        require(
+            _treasuryWallet != address(0),
+            "MLAB: address cannot be 0 address"
+        );
         treasuryWallet = _treasuryWallet;
     }
 
     function setTeamWallet(address payable _teamWallet) external onlyOwner {
-        require(_teamWallet != address(0), "Address cannot be 0 address");
+        require(_teamWallet != address(0), "MLAB: address cannot be 0 address");
         teamWallet = _teamWallet;
     }
 
     function setLiqWallet(address payable _liqWallet) external onlyOwner {
-        require(_liqWallet != address(0), "Address cannot be 0 address");
+        require(_liqWallet != address(0), "MLAB: address cannot be 0 address");
         liqWallet = _liqWallet;
     }
 
     function addToWhitelist(address _address) external onlyOwner {
-        require(_address != address(0), "Address cannot be 0 address");
+        require(_address != address(0), "MLAB: address cannot be 0 address");
         excludedFromFee[_address] = true;
     }
 
     function removeFromWhitelist(address _address) external onlyOwner {
-        require(_address != address(0), "Address cannot be 0 address");
+        require(_address != address(0), "MLAB: address cannot be 0 address");
         excludedFromFee[_address] = false;
     }
 
@@ -173,7 +176,7 @@ contract MoonLabs is ERC20, Ownable, ReentrancyGuard {
         uint8 burnTax
     ) external onlyOwner {
         uint8 totalTax = liquidityTax + treasuryTax + teamTax + burnTax + 2;
-        require(totalTax <= 12, "ERC20: total tax must not be greater than 10");
+        require(totalTax <= 10, "MLAB: sell tax must not be greater than 10");
         buyTax = BuyTax(
             liquidityTax * 10,
             treasuryTax * 10,
@@ -191,7 +194,7 @@ contract MoonLabs is ERC20, Ownable, ReentrancyGuard {
         uint8 burnTax
     ) external onlyOwner {
         uint8 totalTax = liquidityTax + treasuryTax + teamTax + burnTax + 2;
-        require(totalTax <= 12, "ERC20: total tax must not be greater than 10");
+        require(totalTax <= 10, "MLAB: buy tax must not be greater than 10");
         sellTax = SellTax(
             liquidityTax * 10,
             treasuryTax * 10,
@@ -203,8 +206,21 @@ contract MoonLabs is ERC20, Ownable, ReentrancyGuard {
     }
 
     function setTokensToSellForTax(uint _swapThreshold) external onlyOwner {
-        require(_swapThreshold <= 500000 * 10 ** DECIMALS, "Max swap amount");
+        require(
+            _swapThreshold <= 500000 * 10 ** DECIMALS,
+            "MLAB: max swap amount"
+        );
         swapThreshold = _swapThreshold;
+    }
+
+    function claimETH() external onlyOwner {
+        require(
+            nftBalance < address(this).balance,
+            "MLAB: insignificant eth balance"
+        );
+        (bool sent, ) = payable(msg.sender).call{
+            value: address(this).balance - nftBalance
+        }("");
     }
 
     /*|| === INTERNAL FUNCTIONS === ||*/
@@ -212,12 +228,12 @@ contract MoonLabs is ERC20, Ownable, ReentrancyGuard {
         address from,
         address to,
         uint amount
-    ) internal override nonReentrant {
-        require(from != address(0), "ERC20: transfer from the zero address");
-        require(to != address(0), "ERC20: transfer to the zero address");
+    ) internal override {
+        require(from != address(0), "MLAB: transfer from the zero address");
+        require(to != address(0), "MLAB: transfer to the zero address");
         require(
             balanceOf(from) >= amount,
-            "ERC20: transfer amount exceeds balance"
+            "MLAB: transfer amount exceeds balance"
         );
 
         /// If buy or sell
@@ -235,32 +251,34 @@ contract MoonLabs is ERC20, Ownable, ReentrancyGuard {
 
             uint16[] memory indexArray = new uint16[](maxNftDistribution);
             address[] memory addressArray = new address[](maxNftDistribution);
-            bool distributed;
+
+            bool rewardsSent = false;
 
             for (uint i = 0; i < maxNftDistribution; i++) {
                 /// Check if nft threshold is met
-                if (nftBalance >= nftPayout) {
-                    address nftOwner = nftContract.ownerOf(nftIndex);
-                    /// Send eth to index holder
-                    (bool sent, ) = payable(nftOwner).call{value: nftPayout}(
-                        ""
-                    );
-                    /// Check if eth sent
-                    if (sent) {
-                        /// Subtract amount sent from pool of nft rewards
-                        nftBalance -= nftPayout;
-                        /// Push nft index to array
-                        indexArray[i] = nftIndex;
-                        /// Push nft payout address to array
-                        addressArray[i] = nftOwner;
-                        /// Set distributed to true if not true
-                        if (!distributed) distributed = true;
-                    }
-
+                if (nftBalance > nftPayout) {
                     if (nftIndex < 500) {
                         nftIndex++;
                     } else {
                         nftIndex = 1;
+                    }
+                    address nftOwner = nftContract.ownerOf(nftIndex);
+                    /// Check if not contract address
+                    if (!(nftOwner.code.length > 0)) {
+                        /// Send eth to index holder
+                        (bool sent, ) = payable(nftOwner).call{
+                            value: nftPayout
+                        }("");
+                        /// Check if eth sent
+                        if (sent) {
+                            if (!rewardsSent) rewardsSent = true;
+                            /// Subtract amount sent from pool of nft rewards
+                            nftBalance -= nftPayout;
+                            /// Push nft index to array
+                            indexArray[i] = nftIndex;
+                            /// Push nft payout address to array
+                            addressArray[i] = nftOwner;
+                        }
                     }
                 } else {
                     /// Break from loop
@@ -269,13 +287,13 @@ contract MoonLabs is ERC20, Ownable, ReentrancyGuard {
             }
 
             /// Emit event if nft payout
-            if (distributed)
+            if (rewardsSent)
                 emit DistributeNftPayout(addressArray, indexArray, nftPayout);
 
             uint transferAmount = amount;
             if (!(excludedFromFee[from] || excludedFromFee[to])) {
-                require(launched, "Token not launched");
-                uint fees;
+                require(launched, "MLAB: token not launched");
+                uint fees = 0;
 
                 /// On sell
                 if (to == uniswapV2Pair) {
@@ -318,7 +336,7 @@ contract MoonLabs is ERC20, Ownable, ReentrancyGuard {
         uint8 burnTax = buyTax.burnTax + sellTax.burnTax;
         uint8 liquidityTax = buyTax.liquidityTax + sellTax.liquidityTax;
 
-        uint burnTokenCut;
+        uint burnTokenCut = 0;
 
         /// If burns are enabled
         if (buyTax.burnTax != 0 || sellTax.burnTax != 0) {
@@ -333,39 +351,37 @@ contract MoonLabs is ERC20, Ownable, ReentrancyGuard {
 
         _swapTokens(swapThreshold - addToLiquidityHalf - burnTokenCut);
 
-        uint ethBalance = address(this).balance;
+        uint ethBalance = address(this).balance - nftBalance;
 
-        uint totalEthFee = (totalTokenTax - (liquidityTax / 2) - burnTax);
+        uint totalSellFee = (totalTokenTax - (liquidityTax / 2) - burnTax);
 
         /// Distribute to team and treasury
-        (treasuryWallet).call{
-            value: (ethBalance * (buyTax.treasuryTax + sellTax.treasuryTax)) /
-                totalEthFee >
-                0
-                ? totalEthFee
-                : 1
-        }("");
-        (teamWallet).call{
-            value: (ethBalance * (buyTax.teamTax + sellTax.teamTax)) /
-                totalEthFee >
-                0
-                ? totalEthFee
-                : 1
-        }("");
+        if (buyTax.treasuryTax + sellTax.treasuryTax > 0) {
+            (treasuryWallet).call{
+                value: (ethBalance *
+                    (buyTax.treasuryTax + sellTax.treasuryTax)) / totalSellFee
+            }("");
+        }
+
+        if (buyTax.teamTax + sellTax.teamTax > 0) {
+            (teamWallet).call{
+                value: (ethBalance * (buyTax.teamTax + sellTax.teamTax)) /
+                    totalSellFee
+            }("");
+        }
 
         /// Add ETH to nft balance
-        nftBalance += (ethBalance * buyTax.nftTax + sellTax.nftTax) /
-            totalEthFee >
-            0
-            ? totalEthFee
-            : 1;
+        nftBalance +=
+            (ethBalance * (buyTax.nftTax + sellTax.nftTax)) /
+            totalSellFee;
 
         /// Add tokens to liquidity
-        _addLiquidity(
-            (addToLiquidityHalf),
-            ((ethBalance * liquidityTax) / totalEthFee > 0 ? totalEthFee : 1) /
-                2
-        );
+        if (addToLiquidityHalf > 0) {
+            _addLiquidity(
+                (addToLiquidityHalf),
+                ((ethBalance * liquidityTax) / totalSellFee) / 2
+            );
+        }
     }
 
     function _addLiquidity(

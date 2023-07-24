@@ -266,7 +266,7 @@ contract MoonLabsWhitelistAlt is
     /**
      * @notice Check to see if a token is whitelisted.
      * @param _address Token address to check if whitelisted
-     * @param pair If address is v2 pair or v3 pool
+     * @param pair address is v2 pair or v3 pool
      */
     function getIsWhitelisted(
         address _address,

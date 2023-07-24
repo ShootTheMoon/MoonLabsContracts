@@ -10,6 +10,10 @@ require("dotenv").config();
 /** @type import('hardhat/config').HardhatUserConfig */
 
 module.exports = {
+  mocha: {
+    timeout: 100000000,
+  },
+  
   solidity: {
     compilers: [
       {
@@ -23,7 +27,7 @@ module.exports = {
             // The number of runs specifies roughly how often
             // the deployed code will be executed across the
             // life-time of the contract.
-            runs: 3500,
+            runs: 3000,
           },
         },
       },
@@ -52,6 +56,10 @@ module.exports = {
         url: process.env.MAINNET_API,
         allowUnlimitedContractSize: true,
       },
+    },
+    mainnet: {
+      url: process.env.MAINNET_API,
+      accounts: [process.env.PRIVATE_KEY],
     },
     goerli: {
       url: process.env.GOERLI_API,

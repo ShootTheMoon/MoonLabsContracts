@@ -129,7 +129,7 @@ contract MoonLabsLiquidityLockerAlt is
     event LockRelocked(
         address owner,
         uint amount,
-        uint64 unlockDate,
+        uint64 unlockTime,
         uint64 nonce
     );
     event LockSplit(
@@ -337,12 +337,12 @@ contract MoonLabsLiquidityLockerAlt is
      * @notice Relock or add tokens to an existing lock. If not whitelisted, fees are in ETH.
      * @param _nonce lock instance id of the targeted lock
      * @param amount amount of tokens to relock, if any
-     * @param unlockDate time in seconds to add to the existing end date
+     * @param unlockTime time in seconds to add to the existing end date
      */
     function relockETH(
         uint64 _nonce,
         uint amount,
-        uint64 unlockDate
+        uint64 unlockTime
     ) external payable {
         address tokenAddress = lockInstance[_nonce].tokenAddress;
 
@@ -358,19 +358,19 @@ contract MoonLabsLiquidityLockerAlt is
         /// Add to burn amount in ETH to burn meter
         _handleBurns(msg.value);
 
-        _relock(_nonce, amount, tokenAddress, unlockDate);
+        _relock(_nonce, amount, tokenAddress, unlockTime);
     }
 
     /**
      * @notice Relock or add tokens to an existing lock. If not whitelisted, fees are in % of lp tokens in the lock.
      * @param _nonce lock instance id of the targeted lock
      * @param amount amount of tokens to relock, if any
-     * @param unlockDate time in seconds to add to the existing end date
+     * @param unlockTime time in seconds to add to the existing end date
      */
     function relockPercent(
         uint64 _nonce,
         uint amount,
-        uint64 unlockDate
+        uint64 unlockTime
     ) external {
         address tokenAddress = lockInstance[_nonce].tokenAddress;
 
@@ -389,7 +389,7 @@ contract MoonLabsLiquidityLockerAlt is
             _transferTokensTo(tokenAddress, feeCollector, tokenFee);
         }
 
-        _relock(_nonce, amount, tokenAddress, unlockDate);
+        _relock(_nonce, amount, tokenAddress, unlockTime);
     }
 
     /**
@@ -512,6 +512,17 @@ contract MoonLabsLiquidityLockerAlt is
     function setReferralContract(address _referralAddress) external onlyOwner {
         require(_referralAddress != address(0), "Zero Address");
         referralContract = IMoonLabsReferral(_referralAddress);
+    }
+
+    /**
+     * @notice Set the whitelist contract address. Owner only function.
+     * @param _whitelistAddress Address of Moon Labs whitelist address
+     */
+    function setWhitelistContract(
+        address _whitelistAddress
+    ) external onlyOwner {
+        require(_whitelistAddress != address(0), "Zero Address");
+        whitelistContract = IMoonLabsWhitelist(_whitelistAddress);
     }
 
     /**
@@ -661,13 +672,13 @@ contract MoonLabsLiquidityLockerAlt is
         uint64 _nonce,
         uint amount,
         address tokenAddress,
-        uint64 unlockDate
+        uint64 unlockTime
     ) private {
         /// Check that sender is the lock owner
         require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
         /// Check for end date upper bounds
         require(
-            unlockDate + lockInstance[_nonce].unlockDate < 10000000000,
+            unlockTime + lockInstance[_nonce].unlockDate < 10000000000,
             "End date"
         );
 
@@ -682,9 +693,9 @@ contract MoonLabsLiquidityLockerAlt is
             lockInstance[_nonce].currentAmount += amountSent;
             lockInstance[_nonce].depositAmount += amountSent;
         }
-        if (unlockDate > 0) lockInstance[_nonce].unlockDate += unlockDate;
+        if (unlockTime > 0) lockInstance[_nonce].unlockDate += unlockTime;
 
-        emit LockRelocked(msg.sender, amount, unlockDate, _nonce);
+        emit LockRelocked(msg.sender, amount, unlockTime, _nonce);
     }
 
     /**

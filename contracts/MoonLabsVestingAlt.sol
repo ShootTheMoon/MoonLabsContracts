@@ -407,6 +407,17 @@ contract MoonLabsVestingAlt is
     }
 
     /**
+     * @notice Set the whitelist contract address. Owner only function.
+     * @param _whitelistAddress Address of Moon Labs whitelist address
+     */
+    function setWhitelistContract(
+        address _whitelistAddress
+    ) external onlyOwner {
+        require(_whitelistAddress != address(0), "Zero Address");
+        whitelistContract = IMoonLabsWhitelist(_whitelistAddress);
+    }
+
+    /**
      * @notice Set the burn threshold in WEI. Owner only function.
      * @param _burnThreshold Amount of ETH in WEI
      */
@@ -553,11 +564,7 @@ contract MoonLabsVestingAlt is
                     depositAmount,
                     totalDeposited
                 ),
-                MathUpgradeable.mulDiv(
-                    amountSent,
-                    depositAmount,
-                    totalDeposited
-                ),
+                0,
                 startDate,
                 endDate
             );
