@@ -144,14 +144,14 @@ contract MoonLabsWhitelist is
         /// Check for significant balance
         require(
             usdContract.balanceOf(msg.sender) >=
-                costUSD - (costUSD * codeDiscount) / 100,
+                costUSD - ((costUSD * codeDiscount) / 100),
             "Insignificant balance"
         );
         /// Transfer tokens from caller to contract
         usdContract.safeTransferFrom(
             msg.sender,
             address(this),
-            costUSD - (costUSD * codeDiscount) / 100
+            costUSD - ((costUSD * codeDiscount) / 100)
         );
         /// Distribute commission to code owner
         _distributeCommission(code, (costUSD * codeCommission) / 100);
