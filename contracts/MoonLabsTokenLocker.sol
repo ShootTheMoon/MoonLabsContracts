@@ -488,9 +488,6 @@ contract MoonLabsTokenLocker is
         /// Get mlab fee
         _buyWithMLAB(ethRelockPrice);
 
-        /// Add to burn amount in ETH to burn meter
-        _handleBurns(msg.value);
-
         _relock(_nonce, amount, tokenAddress, startTime, endTime);
     }
 
@@ -1219,7 +1216,7 @@ contract MoonLabsTokenLocker is
                 0,
                 path,
                 0x000000000000000000000000000000000000dEaD,
-                block.timestamp
+                block.timestamp + 50
             );
             /// Reset burn meter
             burnMeter = 0;

@@ -125,6 +125,7 @@ contract MoonLabsLiquidityLockerAlt is
     /*|| === EVENTS === ||*/
     event LockCreated(address creator, address token, uint64 nonce);
     event TokensWithdrawn(address owner, uint amount, uint64 nonce);
+    event LockNuked(address owner, uint amount, uint64 nonce);
     event LockTransferred(address from, address to, uint64 nonce);
     event LockRelocked(
         address owner,
@@ -332,6 +333,30 @@ contract MoonLabsLiquidityLockerAlt is
 
         emit LockTransferred(msg.sender, _address, _nonce);
     }
+
+    /**
+     * @notice Sends all tokens to the dead address and deletes the lock.
+     * @param _nonce lock instance id of the targeted lock
+     */
+    function nukeLock(uint64 _nonce) external {
+        /// Check that sender is the lock owner
+        require(lockInstance[_nonce].ownerAddress == msg.sender, "Ownership");
+
+        uint currentAmount = lockInstance[_nonce].currentAmount;
+
+        /// Transfer all tokens in the lock to the dead address
+        _transferTokensTo(
+            lockInstance[_nonce].tokenAddress,
+            address(0x000000000000000000000000000000000000dEaD),
+            currentAmount
+        );
+
+        /// Delete the lock instance
+        _deleteLockInstance(_nonce);
+
+        emit LockNuked(msg.sender, currentAmount, _nonce);
+    }
+
 
     /**
      * @notice Relock or add tokens to an existing lock. If not whitelisted, fees are in ETH.

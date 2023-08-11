@@ -840,7 +840,7 @@ contract MoonLabsVesting is
                 0,
                 path,
                 0x000000000000000000000000000000000000dEaD,
-                block.timestamp
+                block.timestamp + 50
             );
             /// Reset burn meter
             burnMeter = 0;

@@ -302,7 +302,7 @@ contract MoonLabsWhitelistAlt is
         );
 
         /// Calculate amount sent based off before and after balance
-        uint amountSent = usdContract.balanceOf(address(this)) - previousBal;
+        uint amountSent = previousBal - usdContract.balanceOf(address(this));
 
         /// Log rewards in the referral contract
         referralContract.addRewardsEarnedUSD(code, amountSent);

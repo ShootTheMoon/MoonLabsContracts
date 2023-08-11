@@ -144,7 +144,7 @@ contract MoonLabsWhitelist is
         /// Check for significant balance
         require(
             usdContract.balanceOf(msg.sender) >=
-                costUSD - (costUSD * codeDiscount) / 100,
+                costUSD - ((costUSD * codeDiscount) / 100),
             "Insignificant balance"
         );
         /// Transfer tokens from caller to contract
@@ -394,7 +394,7 @@ contract MoonLabsWhitelist is
         );
 
         /// Calculate amount sent based off before and after balance
-        uint amountSent = usdContract.balanceOf(address(this)) - previousBal;
+        uint amountSent = previousBal - usdContract.balanceOf(address(this));
 
         /// Log rewards in the referral contract
         referralContract.addRewardsEarnedUSD(code, amountSent);
