@@ -151,7 +151,7 @@ contract MoonLabsWhitelist is
         usdContract.safeTransferFrom(
             msg.sender,
             address(this),
-            costUSD - (costUSD * codeDiscount) / 100
+            costUSD - ((costUSD * codeDiscount) / 100)
         );
         /// Distribute commission to code owner
         _distributeCommission(code, (costUSD * codeCommission) / 100);
