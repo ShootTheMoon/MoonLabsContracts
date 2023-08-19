@@ -1,10 +1,10 @@
 const { ethers, upgrades } = require("hardhat");
 
-const args = require("../values/goerli.json");
+const args = require("../values/eth.json");
 
 async function main() {
   const MoonLabsWhitelist = await ethers.getContractFactory("MoonLabsWhitelist");
-  const moonLabsWhitelist = await upgrades.deployProxy(MoonLabsWhitelist, [args.mlabToken, args.feeCollector, args.referral, args.usdAddress, args.router, args.router], {
+  const moonLabsWhitelist = await upgrades.deployProxy(MoonLabsWhitelist, [args.mlabToken, args.feeCollector, args.referral, args.usdAddress, args.router, args.amountUSDC], {
     initializer: "initialize",
   });
   await moonLabsWhitelist.deployed();

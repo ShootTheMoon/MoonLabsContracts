@@ -1,10 +1,10 @@
 {
-    "whitelist": "0x7e4FF1c2c660F39716f5EE7d88F4b03A7d95DA89",
+    "whitelist": "0x4339C7DedE59dA925331f51b223e81069bB7F56b",
     "router": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
-    "mlabToken": "0xa7919d878793A00891Bf742B5E47dcC202a577ce",
-    "feeCollector": "0x815D4807f53Fb03dF9F88cEAfa61605CF139b6eb",
-    "usdAddress": "0x07865c6E87B9F70255377e024ace6630C1Eaa37F",
+    "mlabToken": "0x70b951f7d4bb28bce55ee5374c95349324846833",
+    "feeCollector": "0x10A35630e5cA37f496C2A62fFa71BC79bb3d73B3",
+    "usdAddress": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
     "referral": "0xcd1EDB61d76EfECDBF3E5E6dd5b54Aa964Ce61D9",
-    "amountUSDC": "5000000000"
+    "amountUSDC": "3000000000"
   }
   

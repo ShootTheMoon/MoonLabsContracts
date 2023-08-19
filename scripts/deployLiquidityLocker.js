@@ -1,6 +1,6 @@
 const { ethers, upgrades } = require("hardhat");
 
-const args = require("../values/goerli.json");
+const args = require("../values/eth.json");
 
 async function main() {
   const MoonLabsLiquidityLocker = await ethers.getContractFactory("MoonLabsLiquidityLocker");

@@ -60,6 +60,7 @@ module.exports = {
     mainnet: {
       url: process.env.MAINNET_API,
       accounts: [process.env.PRIVATE_KEY],
+      gasPrice: 12000000000
     },
     goerli: {
       url: process.env.GOERLI_API,
